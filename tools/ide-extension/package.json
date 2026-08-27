@@ -1,0 +1,76 @@
+{
+  "name": "antigravity-agents-hub",
+  "displayName": "Antigravity Agents Hub",
+  "description": "Visual manager and inspector for AI coding rules, progressive skills, and stack plugins.",
+  "version": "1.0.0",
+  "publisher": "antigravity",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other",
+    "Linters"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agents-hub-container",
+          "title": "Agents Hub",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "agents-hub-container": [
+        {
+          "id": "agentsHub.stacksView",
+          "name": "Stack Plugins & Inherited Bundles"
+        },
+        {
+          "id": "agentsHub.rulesView",
+          "name": "Active Guidelines & Invariants"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "agentsHub.refresh",
+        "title": "Refresh Registry & Stacks",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "agentsHub.toggleStack",
+        "title": "Toggle Stack Inheritance"
+      },
+      {
+        "command": "agentsHub.openRule",
+        "title": "Open Rule in Editor"
+      },
+      {
+        "command": "agentsHub.validate",
+        "title": "Validate Guidelines Registry"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "agentsHub.refresh",
+          "when": "view == agentsHub.stacksView || view == agentsHub.rulesView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "agentsHub.toggleStack",
+          "when": "view == agentsHub.stacksView",
+          "group": "inline"
+        }
+      ]
+    }
+  }
+}

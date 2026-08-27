@@ -1,0 +1,5 @@
+{
+  "name": "react-stack",
+  "description": "Architectural guidelines for Next.js App Router, Server/Client components, Server Actions, Tailwind CSS design tokens, and React best practices.",
+  "version": "1.0.0"
+}

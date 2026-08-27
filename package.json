@@ -1,0 +1,17 @@
+{
+  "name": "agents-hub",
+  "version": "1.0.0",
+  "description": "Central Agent Customizations & Guidelines Registry for Antigravity",
+  "main": "tools/cli/src/index.js",
+  "bin": {
+    "agents-hub": "tools/cli/bin/agents-hub.js"
+  },
+  "scripts": {
+    "validate": "node tools/cli/bin/agents-hub.js validate",
+    "list": "node tools/cli/bin/agents-hub.js list",
+    "test": "node tools/cli/bin/agents-hub.js validate"
+  },
+  "keywords": ["antigravity", "agents", "rules", "skills", "registry", "ai-guidelines"],
+  "author": "",
+  "license": "MIT"
+}
