@@ -1,7 +1,7 @@
 {
   "inherits": [
     {
-      "path": "/Users/manesh/Documents/Projects/agents-hub/plugins/flutter-stack/plugin.json"
+      "path": "~/path/to/agents-hub/plugins/flutter-stack/plugin.json"
     }
   ]
 }

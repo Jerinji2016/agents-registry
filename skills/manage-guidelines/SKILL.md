@@ -65,5 +65,5 @@ node skills/manage-guidelines/scripts/validate.js
 ### Step 5: Notify and Provide Git Commands
 If updating the Central Registry, provide the ready-to-run Git command:
 ```bash
-git -C /Users/manesh/Documents/Projects/agents-hub commit -am "feat(<stack>): update <topic> guideline"
+git -C <path-to-agents-hub> commit -am "feat(<stack>): update <topic> guideline"
 ```

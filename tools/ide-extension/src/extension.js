@@ -150,12 +150,18 @@ class ActiveRulesProvider {
 }
 
 function activate(context) {
+  const os = require('os');
   const workspaceRoot = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
     ? vscode.workspace.workspaceFolders[0].uri.fsPath
     : undefined;
 
-  // Default registry root to current workspace or standard path
-  const registryRoot = '/Users/manesh/Documents/Projects/agents-hub';
+  // Resolve registry path dynamically:
+  // 1. VS Code configuration 'agentsHub.registryPath'
+  // 2. Environment variable AGENTS_HUB_PATH
+  // 3. Fallback to package parent if running inside the repo or home directory
+  const configuredPath = vscode.workspace.getConfiguration('agentsHub').get('registryPath');
+  const fallbackRepoPath = path.resolve(__dirname, '../../../');
+  const registryRoot = configuredPath || process.env.AGENTS_HUB_PATH || (fs.existsSync(path.join(fallbackRepoPath, 'plugins')) ? fallbackRepoPath : path.join(os.homedir(), 'Developer', 'agents-hub'));
 
   const stacksProvider = new StacksProvider(workspaceRoot, registryRoot);
   const rulesProvider = new ActiveRulesProvider(workspaceRoot);
