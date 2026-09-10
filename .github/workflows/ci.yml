@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  test-and-package:
-    name: Test & Package Extension
+  validate-and-test:
+    name: 1. Validate Registry & Run Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -31,13 +31,49 @@ jobs:
             npm install
           fi
 
-      - name: Run test suite & registry validator
+      - name: Validate Registry Structure & Metadata
+        run: npm run validate
+
+      - name: Run Test Suite (CLI, Extension Logic, Links, Updater)
         run: npm test
 
-      - name: Package VS Code / Antigravity IDE Extension (VSIX)
+  package-extension:
+    name: 2. Package Extension VSIX
+    needs: validate-and-test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Package Extension VSIX Bundle
         run: npm run package:extension
 
-      - name: Upload VSIX build artifact
+      - name: Verify VSIX Package Artifact
+        run: |
+          if ls tools/ide-extension/*.vsix 1> /dev/null 2>&1; then
+            echo "✔ VSIX package successfully generated:"
+            ls -lh tools/ide-extension/*.vsix
+          else
+            echo "❌ VSIX package not found!"
+            exit 1
+          fi
+
+      - name: Upload VSIX Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: antigravity-agents-hub-vsix

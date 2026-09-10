@@ -10,13 +10,43 @@ permissions:
   pull-requests: write
 
 jobs:
-  release:
-    name: Automated Tagging & Release
+  quality-gate:
+    name: 1. Pre-Release Verification
     runs-on: ubuntu-latest
     if: github.repository == 'Jerinji2016/agents-registry'
 
     steps:
       - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Validate Registry Structure & Metadata
+        run: npm run validate
+
+      - name: Run Full Test Suite
+        run: npm test
+
+  release:
+    name: 2. Tag, Build & Publish Release
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    if: github.repository == 'Jerinji2016/agents-registry'
+
+    steps:
+      - name: Checkout repository (Full Git History)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -35,10 +65,7 @@ jobs:
             npm install
           fi
 
-      - name: Run test suite
-        run: npm test
-
-      - name: Calculate Next Version & Generate Tag
+      - name: Calculate Next Version & Generate Git Tag
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.2
         with:
@@ -59,6 +86,7 @@ jobs:
                 const j = JSON.parse(fs.readFileSync(p, 'utf8'));
                 j.version = v;
                 fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
+                console.log('Synchronized ' + p + ' to version ' + v);
               }
             });
           "
@@ -68,6 +96,17 @@ jobs:
         run: |
           cd tools/ide-extension
           npx @vscode/vsce package --no-git-tag-version --no-update-package-json --allow-missing-repository --out ../../antigravity-agents-hub-${{ steps.tag_version.outputs.new_version }}.vsix
+
+      - name: Verify Production VSIX Asset
+        if: steps.tag_version.outputs.new_tag != ''
+        run: |
+          if ls antigravity-agents-hub-*.vsix 1> /dev/null 2>&1; then
+            echo "✔ Production VSIX bundle ready for release:"
+            ls -lh antigravity-agents-hub-*.vsix
+          else
+            echo "❌ Production VSIX bundle was not generated!"
+            exit 1
+          fi
 
       - name: Publish GitHub Release
         if: steps.tag_version.outputs.new_tag != ''

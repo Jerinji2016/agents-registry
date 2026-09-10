@@ -1,55 +1,136 @@
 ---
 name: flutter-gen
 description: >-
-  Procedure for generating type-safe asset references using flutter_gen when adding images, SVG icons, animations, or fonts to Flutter projects.
+  Procedure for managing type-safe asset references, color palettes, SVGs, Lottie animations, and ThemeExtensions using flutter_gen and feature-mirrored asset directories in Flutter apps.
 ---
 
-# flutter_gen Asset Generation Runbook
+# flutter_gen Asset & Color Management Runbook
 
-This skill outlines the workflow for adding new assets and regenerating asset accessors.
+This skill outlines the procedure for adding new assets, SVGs, animations, and color palettes with compile-time type-safety via `flutter_gen`.
 
-## 1. Asset File Placement
-Place raw assets in their respective directories under `assets/`:
-- PNG/JPEG images: `assets/images/`
-- SVG icons: `assets/icons/`
-- Lottie / Rive animations: `assets/animations/`
-- Fonts: `assets/fonts/`
+## 1. Feature-First Asset File Placement
 
-## 2. Configuration Verification (`pubspec.yaml` & `flutter_gen.yaml`)
+Organize raw asset files under `assets/` mirroring feature directories:
 
-Ensure `pubspec.yaml` includes the asset paths:
-```yaml
-flutter:
-  assets:
-    - assets/images/
-    - assets/icons/
+```text
+assets/
+├── core/                                 # App-wide shared assets
+│   ├── colors/
+│   │   └── colors.xml                    # Design tokens (<color name="primary">#0052CC</color>)
+│   ├── icons/                            # Global SVGs (chevron, search, close)
+│   ├── images/                           # Logos, backgrounds, common placeholders
+│   └── animations/                       # Shared Lottie JSON files
+└── features/                             # Feature-scoped assets
+    ├── auth/                             # assets/features/auth/images/
+    └── ai/                               # assets/features/ai/animations/typing_dots.json
 ```
 
-Ensure `flutter_gen.yaml` enables required integrations:
+---
+
+## 2. Configuration Verification (`pubspec.yaml`)
+
+Ensure `pubspec.yaml` includes `flutter_gen` settings and asset folder declarations:
+
 ```yaml
 flutter_gen:
-  output: lib/src/core/generated/
+  output: lib/src/core/gen/
+  line_length: 80
   integrations:
     flutter_svg: true
+    lottie: true
+  colors:
+    inputs:
+      - assets/core/colors/colors.xml
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/core/icons/
+    - assets/core/images/
+    - assets/core/animations/
+    - assets/features/auth/images/
+    - assets/features/ai/animations/
 ```
 
-## 3. Regenerate Asset Classes
+---
 
-Run the generator in the project root:
+## 3. Run Asset Code Generation
+
+Execute the generator from the project root:
 
 ```bash
 dart run flutter_gen:flutter_gen_command
-# or with build_runner:
+# Or via build_runner:
 dart run build_runner build --delete-conflicting-outputs
 ```
 
-## 4. Widget Consumption
+---
 
-Reference the generated asset in code:
+## 4. UI Consumption & Accessor Patterns
+
+Reference generated accessors in widgets:
+
 ```dart
-// Raster image
-Assets.images.logo.image(width: 120, height: 120)
+// Raster Image (PNG / JPEG)
+AppAssets.core.images.logo.image(width: 120, height: 120)
 
-// SVG icon
-Assets.icons.settings.svg(width: 24, height: 24, colorFilter: ColorFilter.mode(Colors.black, BlendMode.srcIn))
+// SVG Vector Icon
+AppAssets.core.icons.chevronDown.svg(width: 24, height: 24)
+
+// Lottie Animation
+AppAssets.features.ai.animations.typingDots.lottie(width: 48, height: 48)
+
+// Color Token
+Container(color: ColorName.primary)
+
+// Font Family
+Text('Title', style: TextStyle(fontFamily: FontFamily.inter))
 ```
+
+---
+
+## 5. Dynamic Light / Dark Theming (`ThemeExtension`)
+
+For feature-specific colors that adapt between Light and Dark mode, create a `ThemeExtension` in `presentation/core/` or the feature's theme folder:
+
+```dart
+@immutable
+class FeatureColors extends ThemeExtension<FeatureColors> {
+  const FeatureColors({required this.cardBackground, required this.glow});
+  final Color cardBackground;
+  final Color glow;
+
+  static const light = FeatureColors(
+    cardBackground: Color(0xFFFFFFFF),
+    glow: ColorName.primary,
+  );
+
+  static const dark = FeatureColors(
+    cardBackground: Color(0xFF1E293B),
+    glow: ColorName.secondary,
+  );
+
+  @override
+  FeatureColors copyWith({Color? cardBackground, Color? glow}) => FeatureColors(
+    cardBackground: cardBackground ?? this.cardBackground,
+    glow: glow ?? this.glow,
+  );
+
+  @override
+  FeatureColors lerp(ThemeExtension<FeatureColors>? other, double t) {
+    if (other is! FeatureColors) return this;
+    return FeatureColors(
+      cardBackground: Color.lerp(cardBackground, other.cardBackground, t)!,
+      glow: Color.lerp(glow, other.glow, t)!,
+    );
+  }
+}
+```
+
+Consume in UI:
+```dart
+final colors = Theme.of(context).extension<FeatureColors>()!;
+```
+
+> [!WARNING]
+> **Boundary Rule**: Asset accessors (`AppAssets.*`, `ColorName.*`) must never be imported in `domain/` or `data/` layers.
