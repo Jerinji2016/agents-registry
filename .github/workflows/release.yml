@@ -1,0 +1,81 @@
+name: Release Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: Automated Tagging & Release
+    runs-on: ubuntu-latest
+    if: github.repository == 'Jerinji2016/agents-registry'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Run test suite
+        run: npm test
+
+      - name: Calculate Next Version & Generate Tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+          tag_prefix: v
+          release_branches: main
+
+      - name: Synchronize Package Versions
+        if: steps.tag_version.outputs.new_tag != ''
+        run: |
+          node -e "
+            const fs = require('fs');
+            const v = '${{ steps.tag_version.outputs.new_version }}';
+            ['package.json', 'tools/ide-extension/package.json'].forEach(p => {
+              if (fs.existsSync(p)) {
+                const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+                j.version = v;
+                fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
+              }
+            });
+          "
+
+      - name: Package Production VSIX
+        if: steps.tag_version.outputs.new_tag != ''
+        run: |
+          cd tools/ide-extension
+          npx @vscode/vsce package --no-git-tag-version --no-update-package-json --allow-missing-repository --out ../../antigravity-agents-hub-${{ steps.tag_version.outputs.new_version }}.vsix
+
+      - name: Publish GitHub Release
+        if: steps.tag_version.outputs.new_tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
+          files: antigravity-agents-hub-*.vsix
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
