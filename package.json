@@ -9,7 +9,9 @@
   "scripts": {
     "validate": "node tools/cli/bin/agents-hub.js validate",
     "list": "node tools/cli/bin/agents-hub.js list",
-    "test": "node tools/cli/bin/agents-hub.js validate"
+    "test": "node tools/cli/bin/agents-hub.js validate",
+    "package:extension": "cd tools/ide-extension && npx @vscode/vsce package --no-git-tag-version --no-update-package-json --allow-missing-repository",
+    "install:extension": "\"/Applications/Antigravity IDE.app/Contents/Resources/app/bin/antigravity-ide\" --install-extension tools/ide-extension/antigravity-agents-hub-1.0.0.vsix --force"
   },
   "keywords": ["antigravity", "agents", "rules", "skills", "registry", "ai-guidelines"],
   "author": "",
