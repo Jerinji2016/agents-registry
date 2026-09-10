@@ -210,7 +210,7 @@ class ActivePluginsProvider {
 
       if (items.length === 0) {
         const emptyItem = new vscode.TreeItem('No active plugins in this workspace', vscode.TreeItemCollapsibleState.None);
-        emptyItem.description = 'Click + in STACK PLUGINS to add';
+        emptyItem.description = 'Click + in HUB to add';
         emptyItem.iconPath = new vscode.ThemeIcon('info');
         return Promise.resolve([emptyItem]);
       }

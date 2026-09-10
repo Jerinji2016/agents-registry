@@ -34,15 +34,15 @@
       "agents-hub-container": [
         {
           "id": "agentsHub.stacksView",
-          "name": "STACK PLUGINS"
+          "name": "HUB"
         },
         {
           "id": "agentsHub.rulesView",
-          "name": "ACTIVE PLUGINS"
+          "name": "ACTIVE"
         },
         {
           "id": "agentsHub.configView",
-          "name": "Registry Configuration"
+          "name": "SETTINGS"
         }
       ]
     },
