@@ -54,7 +54,8 @@
       },
       {
         "command": "agentsHub.toggleStack",
-        "title": "Toggle Stack Inheritance"
+        "title": "Add",
+        "icon": "$(plus)"
       },
       {
         "command": "agentsHub.openRule",
@@ -73,6 +74,12 @@
       {
         "command": "agentsHub.validate",
         "title": "Validate Guidelines Registry"
+      }
+    ],
+    "viewsWelcome": [
+      {
+        "view": "agentsHub.stacksView",
+        "contents": "No central Agents Hub registry found.\n\nSelect your central `agents-hub` directory to view stack plugins, architectural rules, and progressive skills.\n[$(folder-opened) Select Registry Folder](command:agentsHub.setRegistryPath)\n[$(refresh) Auto-Detect Registry](command:agentsHub.resetRegistryPath)"
       }
     ],
     "configuration": {
@@ -101,7 +108,7 @@
       "view/item/context": [
         {
           "command": "agentsHub.toggleStack",
-          "when": "view == agentsHub.stacksView",
+          "when": "view == agentsHub.stacksView && viewItem == stackItem",
           "group": "inline"
         }
       ]

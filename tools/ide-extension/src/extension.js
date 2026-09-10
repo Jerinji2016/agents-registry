@@ -85,21 +85,9 @@ class StacksProvider {
     const workspaceRoot = this.getWorkspaceRoot();
     const registryRoot = resolveRegistryRoot(workspaceRoot);
 
+    // If registry is not found, return empty array so viewsWelcome renders with rich UI & buttons
     if (!registryRoot || !fs.existsSync(registryRoot) || !fs.existsSync(path.join(registryRoot, 'plugins'))) {
-      const selectItem = new vscode.TreeItem('📁 Select Registry Folder...', vscode.TreeItemCollapsibleState.None);
-      selectItem.description = 'Locate agents-hub repository';
-      selectItem.tooltip = 'Click to choose the directory where your agents-hub registry is located';
-      selectItem.iconPath = new vscode.ThemeIcon('folder-opened');
-      selectItem.command = {
-        command: 'agentsHub.setRegistryPath',
-        title: 'Select Registry Folder'
-      };
-
-      const infoItem = new vscode.TreeItem('Registry Not Found', vscode.TreeItemCollapsibleState.None);
-      infoItem.description = 'Use the picker above or check settings';
-      infoItem.iconPath = new vscode.ThemeIcon('warning');
-
-      return Promise.resolve([selectItem, infoItem]);
+      return Promise.resolve([]);
     }
 
     if (!element) {
@@ -251,39 +239,55 @@ class RegistryConfigProvider {
 
     const items = [];
 
-    // Item 1: Location & Picker
-    const locationItem = new vscode.TreeItem(
-      currentRoot ? `📍 ${currentRoot}` : '📍 (No registry selected)',
-      vscode.TreeItemCollapsibleState.None
-    );
-    locationItem.description = configuredSetting ? 'Custom Setting' : (currentRoot ? 'Auto-Detected' : 'Not Found');
-    locationItem.tooltip = 'Click to choose or change the agents-hub directory';
-    locationItem.iconPath = new vscode.ThemeIcon('folder');
-    locationItem.command = {
-      command: 'agentsHub.setRegistryPath',
-      title: 'Change Registry Folder'
-    };
-    items.push(locationItem);
-
-    // Item 2: Action button to change
-    const changeItem = new vscode.TreeItem('📁 Choose Registry Folder...', vscode.TreeItemCollapsibleState.None);
-    changeItem.iconPath = new vscode.ThemeIcon('folder-opened');
-    changeItem.command = {
-      command: 'agentsHub.setRegistryPath',
-      title: 'Change Registry Folder'
-    };
-    items.push(changeItem);
-
-    // Item 3: Reset if a custom setting is currently applied
-    if (configuredSetting) {
-      const resetItem = new vscode.TreeItem('🔄 Reset to Auto-Detect', vscode.TreeItemCollapsibleState.None);
-      resetItem.tooltip = 'Remove custom setting and return to auto-detection';
-      resetItem.iconPath = new vscode.ThemeIcon('discard');
-      resetItem.command = {
-        command: 'agentsHub.resetRegistryPath',
-        title: 'Reset to Auto-Detect'
+    if (currentRoot && fs.existsSync(currentRoot) && fs.existsSync(path.join(currentRoot, 'plugins'))) {
+      // Registry Found & Valid
+      const locationItem = new vscode.TreeItem(
+        `📍 ${currentRoot}`,
+        vscode.TreeItemCollapsibleState.None
+      );
+      locationItem.description = configuredSetting ? 'Custom Setting' : 'Auto-Detected';
+      locationItem.tooltip = 'Active central registry directory. Click to change.';
+      locationItem.iconPath = new vscode.ThemeIcon('folder');
+      locationItem.command = {
+        command: 'agentsHub.setRegistryPath',
+        title: 'Change Registry Folder'
       };
-      items.push(resetItem);
+      items.push(locationItem);
+
+      const changeItem = new vscode.TreeItem('📁 Change Registry Folder...', vscode.TreeItemCollapsibleState.None);
+      changeItem.iconPath = new vscode.ThemeIcon('folder-opened');
+      changeItem.command = {
+        command: 'agentsHub.setRegistryPath',
+        title: 'Change Registry Folder'
+      };
+      items.push(changeItem);
+
+      if (configuredSetting) {
+        const resetItem = new vscode.TreeItem('🔄 Reset to Auto-Detect', vscode.TreeItemCollapsibleState.None);
+        resetItem.tooltip = 'Clear custom setting and return to auto-detection';
+        resetItem.iconPath = new vscode.ThemeIcon('discard');
+        resetItem.command = {
+          command: 'agentsHub.resetRegistryPath',
+          title: 'Reset to Auto-Detect'
+        };
+        items.push(resetItem);
+      }
+    } else {
+      // Registry Not Found
+      const warningItem = new vscode.TreeItem('⚠ No Registry Configured', vscode.TreeItemCollapsibleState.None);
+      warningItem.description = 'Not Found';
+      warningItem.tooltip = 'No valid agents-hub folder found. Click below to select it.';
+      warningItem.iconPath = new vscode.ThemeIcon('warning');
+      items.push(warningItem);
+
+      const selectItem = new vscode.TreeItem('📁 Select Registry Folder...', vscode.TreeItemCollapsibleState.None);
+      selectItem.description = 'Locate agents-hub';
+      selectItem.iconPath = new vscode.ThemeIcon('folder-opened');
+      selectItem.command = {
+        command: 'agentsHub.setRegistryPath',
+        title: 'Select Registry Folder'
+      };
+      items.push(selectItem);
     }
 
     return Promise.resolve(items);
@@ -389,11 +393,11 @@ function activate(context) {
           return p !== targetPath;
         });
         fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
-        vscode.window.showInformationMessage(`Unlinked ${item.pluginName} from current project.`);
+        vscode.window.showInformationMessage(`Removed ${item.pluginName} from current project.`);
       } else {
         config.inherits.push({ path: targetPath });
         fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
-        vscode.window.showInformationMessage(`Linked ${item.pluginName} into current project.`);
+        vscode.window.showInformationMessage(`Added ${item.pluginName} to current project.`);
       }
 
       stacksProvider.refresh();
