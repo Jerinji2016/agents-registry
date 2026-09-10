@@ -52,10 +52,24 @@
         "title": "Open Rule in Editor"
       },
       {
+        "command": "agentsHub.setRegistryPath",
+        "title": "Select Agents Hub Registry Folder..."
+      },
+      {
         "command": "agentsHub.validate",
         "title": "Validate Guidelines Registry"
       }
     ],
+    "configuration": {
+      "title": "Agents Hub",
+      "properties": {
+        "agentsHub.registryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Absolute path to the central Agents Hub / agent-registry directory."
+        }
+      }
+    },
     "menus": {
       "view/title": [
         {

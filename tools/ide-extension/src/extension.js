@@ -1,6 +1,68 @@
 const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+
+function resolveRegistryRoot(workspaceRoot) {
+  // 1. Explicit VS Code setting
+  const configured = vscode.workspace.getConfiguration('agentsHub').get('registryPath');
+  if (configured && fs.existsSync(configured) && fs.existsSync(path.join(configured, 'plugins'))) {
+    return configured;
+  }
+
+  // 2. Environment variable
+  if (process.env.AGENTS_HUB_PATH && fs.existsSync(process.env.AGENTS_HUB_PATH)) {
+    return process.env.AGENTS_HUB_PATH;
+  }
+
+  // 3. Inspect active workspace .agents/plugins.json (extract from inherited paths)
+  if (workspaceRoot) {
+    const pluginsConfig = path.join(workspaceRoot, '.agents', 'plugins.json');
+    if (fs.existsSync(pluginsConfig)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(pluginsConfig, 'utf8'));
+        if (Array.isArray(data.inherits)) {
+          for (const item of data.inherits) {
+            if (item && item.path) {
+              // Path is e.g. /path/to/agents-hub/plugins/flutter-stack/plugin.json
+              const resolved = item.path.startsWith('~')
+                ? path.join(os.homedir(), item.path.slice(1))
+                : item.path;
+              const match = resolved.match(/(.+)[/\\]plugins[/\\]/);
+              if (match && fs.existsSync(match[1]) && fs.existsSync(path.join(match[1], 'plugins'))) {
+                return match[1];
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    // If active workspace is itself the registry root (contains plugins/)
+    if (fs.existsSync(path.join(workspaceRoot, 'plugins'))) {
+      return workspaceRoot;
+    }
+  }
+
+  // 4. Well-known local filesystem candidate paths
+  const candidatePaths = [
+    path.join(os.homedir(), 'Documents', 'Projects', 'agents-hub'),
+    '/Users/manesh/Documents/Projects/agents-hub',
+    path.join(os.homedir(), 'Developer', 'agents-hub'),
+    path.join(os.homedir(), 'Developer', 'agent-registry'),
+    path.join(os.homedir(), 'Projects', 'agents-hub'),
+    path.join(os.homedir(), 'projects', 'agents-hub'),
+    path.join(os.homedir(), '.gemini', 'agents-hub')
+  ];
+
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p) && fs.existsSync(path.join(p, 'plugins'))) {
+      return p;
+    }
+  }
+
+  return undefined;
+}
 
 class StacksProvider {
   constructor(workspaceRoot, registryRoot) {
@@ -10,7 +72,12 @@ class StacksProvider {
     this.onDidChangeTreeData = this._onDidChangeTreeData.event;
   }
 
+  setRegistryRoot(newRoot) {
+    this.registryRoot = newRoot;
+  }
+
   refresh() {
+    this.registryRoot = resolveRegistryRoot(this.workspaceRoot);
     this._onDidChangeTreeData.fire();
   }
 
@@ -19,10 +86,22 @@ class StacksProvider {
   }
 
   getChildren(element) {
-    if (!this.registryRoot || !fs.existsSync(this.registryRoot)) {
-      return Promise.resolve([
-        new vscode.TreeItem('Registry not found', vscode.TreeItemCollapsibleState.None)
-      ]);
+    // If registry path not resolved
+    if (!this.registryRoot || !fs.existsSync(this.registryRoot) || !fs.existsSync(path.join(this.registryRoot, 'plugins'))) {
+      const selectItem = new vscode.TreeItem('📁 Select Registry Folder...', vscode.TreeItemCollapsibleState.None);
+      selectItem.description = 'Locate agents-hub repository';
+      selectItem.tooltip = 'Click to choose the directory where agents-hub is cloned';
+      selectItem.iconPath = new vscode.ThemeIcon('folder-opened');
+      selectItem.command = {
+        command: 'agentsHub.setRegistryPath',
+        title: 'Select Registry Folder'
+      };
+
+      const infoItem = new vscode.TreeItem('Registry Not Found', vscode.TreeItemCollapsibleState.None);
+      infoItem.description = 'Configure agentsHub.registryPath in Settings';
+      infoItem.iconPath = new vscode.ThemeIcon('warning');
+
+      return Promise.resolve([selectItem, infoItem]);
     }
 
     if (!element) {
@@ -102,7 +181,10 @@ class StacksProvider {
     try {
       const data = JSON.parse(fs.readFileSync(pluginsConfig, 'utf8'));
       if (Array.isArray(data.inherits)) {
-        return data.inherits.map(i => i.path);
+        return data.inherits.map(i => {
+          if (!i || !i.path) return '';
+          return i.path.startsWith('~') ? path.join(os.homedir(), i.path.slice(1)) : i.path;
+        });
       }
     } catch (_) {}
     return [];
@@ -150,18 +232,11 @@ class ActiveRulesProvider {
 }
 
 function activate(context) {
-  const os = require('os');
   const workspaceRoot = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
     ? vscode.workspace.workspaceFolders[0].uri.fsPath
     : undefined;
 
-  // Resolve registry path dynamically:
-  // 1. VS Code configuration 'agentsHub.registryPath'
-  // 2. Environment variable AGENTS_HUB_PATH
-  // 3. Fallback to package parent if running inside the repo or home directory
-  const configuredPath = vscode.workspace.getConfiguration('agentsHub').get('registryPath');
-  const fallbackRepoPath = path.resolve(__dirname, '../../../');
-  const registryRoot = configuredPath || process.env.AGENTS_HUB_PATH || (fs.existsSync(path.join(fallbackRepoPath, 'plugins')) ? fallbackRepoPath : path.join(os.homedir(), 'Developer', 'agents-hub'));
+  let registryRoot = resolveRegistryRoot(workspaceRoot);
 
   const stacksProvider = new StacksProvider(workspaceRoot, registryRoot);
   const rulesProvider = new ActiveRulesProvider(workspaceRoot);
@@ -174,6 +249,29 @@ function activate(context) {
       stacksProvider.refresh();
       rulesProvider.refresh();
       vscode.window.showInformationMessage('Agents Hub: Refreshed stacks and rules.');
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('agentsHub.setRegistryPath', async () => {
+      const uri = await vscode.window.showOpenDialog({
+        canSelectFiles: false,
+        canSelectFolders: true,
+        canSelectMany: false,
+        openLabel: 'Select agents-hub Registry Directory'
+      });
+
+      if (uri && uri[0]) {
+        const selectedPath = uri[0].fsPath;
+        const pluginsCheck = path.join(selectedPath, 'plugins');
+        if (!fs.existsSync(pluginsCheck)) {
+          vscode.window.showWarningMessage(`Warning: "${selectedPath}" does not appear to contain a "plugins/" folder.`);
+        }
+        await vscode.workspace.getConfiguration('agentsHub').update('registryPath', selectedPath, vscode.ConfigurationTarget.Global);
+        stacksProvider.setRegistryRoot(selectedPath);
+        stacksProvider.refresh();
+        vscode.window.showInformationMessage(`Agents Hub: Registry path set to ${selectedPath}`);
+      }
     })
   );
 
@@ -209,19 +307,33 @@ function activate(context) {
         } catch (_) {}
       }
 
+      const targetPath = item.manifestPath;
+
       if (item.isLinked) {
         // Remove
-        config.inherits = config.inherits.filter(i => i.path !== item.manifestPath);
+        config.inherits = config.inherits.filter(i => {
+          const p = i.path.startsWith('~') ? path.join(os.homedir(), i.path.slice(1)) : i.path;
+          return p !== targetPath;
+        });
         fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
         vscode.window.showInformationMessage(`Unlinked ${item.pluginName} from current project.`);
       } else {
         // Add
-        config.inherits.push({ path: item.manifestPath });
+        config.inherits.push({ path: targetPath });
         fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
         vscode.window.showInformationMessage(`Linked ${item.pluginName} into current project.`);
       }
 
       stacksProvider.refresh();
+    })
+  );
+
+  // Listen to configuration changes
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(e => {
+      if (e.affectsConfiguration('agentsHub.registryPath')) {
+        stacksProvider.refresh();
+      }
     })
   );
 }
