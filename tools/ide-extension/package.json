@@ -78,7 +78,7 @@
       },
       {
         "command": "agentsHub.syncRegistry",
-        "title": "Sync Registry from GitHub",
+        "title": "Sync Registry",
         "icon": "$(cloud-download)"
       },
       {
@@ -94,7 +94,7 @@
     "viewsWelcome": [
       {
         "view": "agentsHub.stacksView",
-        "contents": "No central Agents Hub registry found.\n\nSync the registry directly from GitHub or select an existing local folder.\n[$(cloud-download) Download & Sync from GitHub](command:agentsHub.syncRegistry)\n[$(folder-opened) Select Local Registry Folder](command:agentsHub.setRegistryPath)\n[$(refresh) Auto-Detect](command:agentsHub.resetRegistryPath)"
+        "contents": "No central Agents Hub registry found.\n\nSync the registry or select an existing local folder.\n[$(cloud-download) Sync Registry](command:agentsHub.syncRegistry)\n[$(folder-opened) Select Local Registry Folder](command:agentsHub.setRegistryPath)\n[$(refresh) Auto-Detect](command:agentsHub.resetRegistryPath)"
       }
     ],
     "configuration": {

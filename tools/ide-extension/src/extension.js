@@ -349,12 +349,12 @@ class RegistryConfigProvider {
       };
       items.push(locationItem);
 
-      const syncItem = new vscode.TreeItem('🔄 Sync Registry from GitHub', vscode.TreeItemCollapsibleState.None);
+      const syncItem = new vscode.TreeItem('🔄 Sync Registry', vscode.TreeItemCollapsibleState.None);
       syncItem.iconPath = new vscode.ThemeIcon('cloud-download');
       syncItem.description = 'git pull latest rules';
       syncItem.command = {
         command: 'agentsHub.syncRegistry',
-        title: 'Sync from GitHub'
+        title: 'Sync Registry'
       };
       items.push(syncItem);
 
@@ -389,16 +389,16 @@ class RegistryConfigProvider {
       // Registry Not Found
       const warningItem = new vscode.TreeItem('⚠ No Registry Configured', vscode.TreeItemCollapsibleState.None);
       warningItem.description = 'Not Found';
-      warningItem.tooltip = 'No valid agents-hub folder found. Sync from GitHub or select local folder.';
+      warningItem.tooltip = 'No valid agents-hub folder found. Sync registry or select local folder.';
       warningItem.iconPath = new vscode.ThemeIcon('warning');
       items.push(warningItem);
 
-      const autoSyncItem = new vscode.TreeItem('🚀 Download & Sync from GitHub', vscode.TreeItemCollapsibleState.None);
+      const autoSyncItem = new vscode.TreeItem('🚀 Sync Registry', vscode.TreeItemCollapsibleState.None);
       autoSyncItem.description = 'Automatic setup (~/.agents-hub)';
       autoSyncItem.iconPath = new vscode.ThemeIcon('cloud-download');
       autoSyncItem.command = {
         command: 'agentsHub.syncRegistry',
-        title: 'Download from GitHub'
+        title: 'Sync Registry'
       };
       items.push(autoSyncItem);
 
@@ -528,7 +528,7 @@ function activate(context) {
 
       await vscode.window.withProgress({
         location: vscode.ProgressLocation.Notification,
-        title: 'Syncing registry from GitHub...',
+        title: 'Syncing registry...',
         cancellable: false
       }, async () => {
         try {
