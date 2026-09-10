@@ -21,7 +21,7 @@ function printUsage() {
 \x1b[1mExamples:\x1b[0m
   agents-hub list
   agents-hub validate
-  agents-hub link flutter-stack --target /path/to/my-app
+  agents-hub link flutter --target /path/to/my-app
   agents-hub status
 `);
 }
@@ -39,7 +39,7 @@ switch (command) {
   case 'link': {
     const stack = args[1];
     if (!stack) {
-      console.error('\x1b[31mError:\x1b[0m Please specify a stack name to link (e.g. flutter-stack, react-stack).');
+      console.error('\x1b[31mError:\x1b[0m Please specify a stack name to link (e.g. flutter, react).');
       process.exit(1);
     }
     const targetIdx = args.indexOf('--target');

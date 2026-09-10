@@ -17,9 +17,9 @@ Ask the user:
 > *"Should this guideline be updated in the **Central Registry** (shared across all React/Next.js projects) or as a **Project-Level Override** (local to this project only)?"*
 
 1. **If Central Registry**:
-   - Location: `~/Developer/agent-registry/plugins/react-stack/rules/` (or configured central registry).
+   - Location: `~/Developer/agent-registry/plugins/react/rules/` (or configured central registry).
    - Target files: `nextjs_conventions.md`, `tailwind_conventions.md`.
-   - Provide the commit command: `git -C <registry-path> commit -am "feat(react-stack): update <rule-topic>"`
+   - Provide the commit command: `git -C <registry-path> commit -am "feat(react): update <rule-topic>"`
 
 2. **If Project-Level Override**:
    - Location: `<project_root>/.agents/rules/project_overrides.md`.

@@ -1,5 +1,5 @@
 {
-  "name": "flutter-stack",
+  "name": "flutter",
   "description": "Architectural guidelines, Riverpod 2.0 rules, Clean Architecture invariants, Freezed serialization standards, and Slang/flutter_gen skills for Flutter projects.",
   "version": "1.0.0"
 }

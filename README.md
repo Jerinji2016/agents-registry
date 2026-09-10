@@ -16,7 +16,7 @@ agents-hub/
 │           └── SKILL.md                # General code review & security sanity checklist
 │
 ├── plugins/                             # Stack-specific Antigravity bundles
-│   ├── flutter-stack/                   # Flutter & Dart architectural standards
+│   ├── flutter/                         # Flutter & Dart architectural standards
 │   │   ├── plugin.json                  # Manifest
 │   │   ├── rules/
 │   │   │   ├── 00_meta_rules.md         # Interactive rule scoping instructions
@@ -29,7 +29,7 @@ agents-hub/
 │   │       ├── slang-i18n/              # Slang translation & build_runner workflows
 │   │       └── flutter-gen/             # flutter_gen asset regeneration
 │   │
-│   └── react-stack/                     # React & Next.js architectural standards
+│   └── react/                           # React & Next.js architectural standards
 │       ├── plugin.json                  # Manifest
 │       ├── rules/
 │       │   ├── 00_meta_rules.md         # Interactive rule scoping instructions
@@ -70,7 +70,7 @@ In your target project (e.g. `my-flutter-app`), create `.agents/plugins.json`:
 {
   "inherits": [
     {
-      "path": "~/path/to/agents-hub/plugins/flutter-stack/plugin.json"
+      "path": "~/path/to/agents-hub/plugins/flutter/plugin.json"
     }
   ]
 }
@@ -82,10 +82,10 @@ Alternatively, use the included CLI tool:
 
 ```bash
 # Using global CLI (after npm link):
-agents-hub link flutter-stack --target /path/to/my-flutter-app
+agents-hub link flutter --target /path/to/my-flutter-app
 
 # Or directly with node:
-node <path-to-agents-hub>/tools/cli/bin/agents-hub.js link flutter-stack --target /path/to/my-flutter-app
+node <path-to-agents-hub>/tools/cli/bin/agents-hub.js link flutter --target /path/to/my-flutter-app
 ```
 
 ### 2. Validating Registry Rules and Manifests

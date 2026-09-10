@@ -5,7 +5,7 @@ Visual interface for inspecting, linking, and managing architectural rules and s
 ## Features
 
 1. **Stack Plugins & Inherited Bundles TreeView**:
-   - Lists all stacks available in the central registry (`flutter-stack`, `react-stack`, etc.).
+   - Lists all stacks available in the central registry (`flutter`, `react`, etc.).
    - Indicates whether each stack is active (`● Active`) or inactive (`○ Inactive`) in the open workspace.
    - Click the inline toggle button to instantly link/unlink a stack in `.agents/plugins.json`.
    - Expand any stack to browse its rules and skills.
