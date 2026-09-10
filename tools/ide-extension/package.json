@@ -39,6 +39,10 @@
         {
           "id": "agentsHub.rulesView",
           "name": "Active Guidelines & Invariants"
+        },
+        {
+          "id": "agentsHub.configView",
+          "name": "Registry Configuration"
         }
       ]
     },
@@ -58,7 +62,13 @@
       },
       {
         "command": "agentsHub.setRegistryPath",
-        "title": "Select Agents Hub Registry Folder..."
+        "title": "Select Registry Folder",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "agentsHub.resetRegistryPath",
+        "title": "Reset Registry Path to Auto-Detect",
+        "icon": "$(discard)"
       },
       {
         "command": "agentsHub.validate",
@@ -71,7 +81,7 @@
         "agentsHub.registryPath": {
           "type": "string",
           "default": "",
-          "description": "Absolute path to the central Agents Hub / agent-registry directory."
+          "description": "Custom path to the central agents-hub directory (leave empty for auto-detect)."
         }
       }
     },
@@ -79,7 +89,12 @@
       "view/title": [
         {
           "command": "agentsHub.refresh",
-          "when": "view == agentsHub.stacksView || view == agentsHub.rulesView",
+          "when": "view == agentsHub.stacksView || view == agentsHub.rulesView || view == agentsHub.configView",
+          "group": "navigation"
+        },
+        {
+          "command": "agentsHub.setRegistryPath",
+          "when": "view == agentsHub.configView || view == agentsHub.stacksView",
           "group": "navigation"
         }
       ],
