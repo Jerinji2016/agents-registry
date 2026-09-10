@@ -26,7 +26,7 @@ The **Antigravity Agents Hub** extension provides a visual sidebar to inspect ac
    # Or in standard VS Code:
    code --install-extension antigravity-agents-hub-X.Y.Z.vsix
    ```
-   *Or in the IDE UI: Go to **Extensions** $\rightarrow$ Click **`...`** menu $\rightarrow$ **Install from VSIX...***
+   *Or in the IDE UI: Go to **Extensions** → Click **`...`** menu → **Install from VSIX...***
 
 #### Option B: Local Development Link
 ```bash
