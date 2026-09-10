@@ -2,8 +2,12 @@ const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-
 const { resolveRegistryRoot } = require('./resolver.js');
+const { ensureRegistryExists, pullLatestRegistry, DEFAULT_MANAGED_PATH } = require('./git-sync.js');
+const { checkForExtensionUpdates, downloadFile, isNewerVersion } = require('./updater.js');
+
+const pkgJson = require('../package.json');
+const CURRENT_VERSION = pkgJson.version || '1.0.0';
 
 class StacksProvider {
   constructor(getWorkspaceRoot) {
@@ -56,7 +60,6 @@ class StacksProvider {
 
       return Promise.resolve(items);
     } else if (element.contextValue === 'stackItem' || element.contextValue === 'linkedStackItem' || element.contextValue === 'unlinkedStackItem') {
-      // Group into non-collapsible / expanded groups: Rules & Skills
       const pPath = path.join(registryRoot, 'plugins', element.pluginName);
       const groups = [];
 
@@ -214,7 +217,6 @@ class ActivePluginsProvider {
 
       return Promise.resolve(items);
     } else if (element.contextValue === 'activeLinkedStackItem') {
-      // Group active stack into Rules & Skills
       const groups = [];
       const rulesDir = path.join(element.pluginRoot, 'rules');
       if (fs.existsSync(rulesDir)) {
@@ -297,6 +299,12 @@ class RegistryConfigProvider {
     this.getWorkspaceRoot = getWorkspaceRoot;
     this._onDidChangeTreeData = new vscode.EventEmitter();
     this.onDidChangeTreeData = this._onDidChangeTreeData.event;
+    this.updateAvailable = null;
+  }
+
+  setUpdateAvailable(info) {
+    this.updateAvailable = info;
+    this.refresh();
   }
 
   refresh() {
@@ -314,13 +322,25 @@ class RegistryConfigProvider {
 
     const items = [];
 
+    // 1. Update status (if available)
+    if (this.updateAvailable && this.updateAvailable.hasUpdate) {
+      const updateItem = new vscode.TreeItem(`✨ Update Available: ${this.updateAvailable.tagName}`, vscode.TreeItemCollapsibleState.None);
+      updateItem.description = 'Click to install';
+      updateItem.iconPath = new vscode.ThemeIcon('cloud-download');
+      updateItem.command = {
+        command: 'agentsHub.checkUpdates',
+        title: 'Install Update'
+      };
+      items.push(updateItem);
+    }
+
     if (currentRoot && fs.existsSync(currentRoot) && fs.existsSync(path.join(currentRoot, 'plugins'))) {
       // Registry Found & Valid
       const locationItem = new vscode.TreeItem(
         `📍 ${currentRoot}`,
         vscode.TreeItemCollapsibleState.None
       );
-      locationItem.description = configuredSetting ? 'Custom Setting' : 'Auto-Detected';
+      locationItem.description = configuredSetting ? 'Custom Setting' : (currentRoot.includes('.agents-hub') ? 'Managed Auto-Clone' : 'Auto-Detected');
       locationItem.tooltip = 'Active central registry directory. Click to change.';
       locationItem.iconPath = new vscode.ThemeIcon('folder');
       locationItem.command = {
@@ -329,7 +349,25 @@ class RegistryConfigProvider {
       };
       items.push(locationItem);
 
-      const changeItem = new vscode.TreeItem('📁 Change Registry Folder...', vscode.TreeItemCollapsibleState.None);
+      const syncItem = new vscode.TreeItem('🔄 Sync Registry from GitHub', vscode.TreeItemCollapsibleState.None);
+      syncItem.iconPath = new vscode.ThemeIcon('cloud-download');
+      syncItem.description = 'git pull latest rules';
+      syncItem.command = {
+        command: 'agentsHub.syncRegistry',
+        title: 'Sync from GitHub'
+      };
+      items.push(syncItem);
+
+      const checkUpdatesItem = new vscode.TreeItem(`🔍 Extension Version: v${CURRENT_VERSION}`, vscode.TreeItemCollapsibleState.None);
+      checkUpdatesItem.iconPath = new vscode.ThemeIcon('sync');
+      checkUpdatesItem.description = 'Check for updates';
+      checkUpdatesItem.command = {
+        command: 'agentsHub.checkUpdates',
+        title: 'Check Updates'
+      };
+      items.push(checkUpdatesItem);
+
+      const changeItem = new vscode.TreeItem('📁 Choose Local Registry Folder...', vscode.TreeItemCollapsibleState.None);
       changeItem.iconPath = new vscode.ThemeIcon('folder-opened');
       changeItem.command = {
         command: 'agentsHub.setRegistryPath',
@@ -351,12 +389,21 @@ class RegistryConfigProvider {
       // Registry Not Found
       const warningItem = new vscode.TreeItem('⚠ No Registry Configured', vscode.TreeItemCollapsibleState.None);
       warningItem.description = 'Not Found';
-      warningItem.tooltip = 'No valid agents-hub folder found. Click below to select it.';
+      warningItem.tooltip = 'No valid agents-hub folder found. Sync from GitHub or select local folder.';
       warningItem.iconPath = new vscode.ThemeIcon('warning');
       items.push(warningItem);
 
-      const selectItem = new vscode.TreeItem('📁 Select Registry Folder...', vscode.TreeItemCollapsibleState.None);
-      selectItem.description = 'Locate agents-hub';
+      const autoSyncItem = new vscode.TreeItem('🚀 Download & Sync from GitHub', vscode.TreeItemCollapsibleState.None);
+      autoSyncItem.description = 'Automatic setup (~/.agents-hub)';
+      autoSyncItem.iconPath = new vscode.ThemeIcon('cloud-download');
+      autoSyncItem.command = {
+        command: 'agentsHub.syncRegistry',
+        title: 'Download from GitHub'
+      };
+      items.push(autoSyncItem);
+
+      const selectItem = new vscode.TreeItem('📁 Select Local Registry Folder...', vscode.TreeItemCollapsibleState.None);
+      selectItem.description = 'Locate existing clone';
       selectItem.iconPath = new vscode.ThemeIcon('folder-opened');
       selectItem.command = {
         command: 'agentsHub.setRegistryPath',
@@ -390,10 +437,108 @@ function activate(context) {
     configProvider.refresh();
   }
 
+  async function performUpdateCheck(isManual = false) {
+    try {
+      if (isManual) {
+        await vscode.window.withProgress({
+          location: vscode.ProgressLocation.Notification,
+          title: 'Checking for Agents Hub updates...',
+          cancellable: false
+        }, async () => {
+          const info = await checkForExtensionUpdates(CURRENT_VERSION);
+          configProvider.setUpdateAvailable(info.hasUpdate ? info : null);
+          await handleUpdateResult(info, isManual);
+        });
+      } else {
+        const info = await checkForExtensionUpdates(CURRENT_VERSION);
+        configProvider.setUpdateAvailable(info.hasUpdate ? info : null);
+        if (info.hasUpdate) {
+          await handleUpdateResult(info, false);
+        }
+      }
+    } catch (err) {
+      if (isManual) {
+        vscode.window.showErrorMessage(`Failed to check for updates: ${err.message}`);
+      }
+    }
+  }
+
+  async function handleUpdateResult(info, isManual) {
+    if (info.hasUpdate) {
+      const choice = await vscode.window.showInformationMessage(
+        `A new version of Agents Hub (${info.tagName}) is available! (Current: v${CURRENT_VERSION})`,
+        'Update Now',
+        'View Release Notes',
+        'Later'
+      );
+
+      if (choice === 'Update Now') {
+        if (!info.vsixDownloadUrl) {
+          vscode.window.showErrorMessage('No .vsix asset found in the latest release. Opening release page instead.');
+          vscode.env.openExternal(vscode.Uri.parse(info.releaseUrl));
+          return;
+        }
+
+        await vscode.window.withProgress({
+          location: vscode.ProgressLocation.Notification,
+          title: `Downloading Agents Hub ${info.tagName}...`,
+          cancellable: false
+        }, async () => {
+          const tmpVsix = path.join(os.tmpdir(), `agents-hub-${info.tagName}.vsix`);
+          await downloadFile(info.vsixDownloadUrl, tmpVsix);
+
+          // Install VSIX via VS Code command
+          await vscode.commands.executeCommand('workbench.extensions.installExtension', vscode.Uri.file(tmpVsix));
+
+          const reloadChoice = await vscode.window.showInformationMessage(
+            `Agents Hub updated to ${info.tagName}! Reload the window to apply changes.`,
+            'Reload Window',
+            'Later'
+          );
+
+          if (reloadChoice === 'Reload Window') {
+            vscode.commands.executeCommand('workbench.action.reloadWindow');
+          }
+        });
+      } else if (choice === 'View Release Notes') {
+        vscode.env.openExternal(vscode.Uri.parse(info.releaseUrl));
+      }
+    } else if (isManual) {
+      vscode.window.showInformationMessage(`Agents Hub is up to date (v${CURRENT_VERSION}).`);
+    }
+  }
+
   context.subscriptions.push(
     vscode.commands.registerCommand('agentsHub.refresh', () => {
       refreshAll();
       vscode.window.showInformationMessage('Agents Hub: Refreshed stacks and configuration.');
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('agentsHub.checkUpdates', () => {
+      return performUpdateCheck(true);
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('agentsHub.syncRegistry', async () => {
+      const workspaceRoot = getWorkspaceRoot();
+      const currentRoot = resolveRegistryRoot(workspaceRoot) || DEFAULT_MANAGED_PATH;
+
+      await vscode.window.withProgress({
+        location: vscode.ProgressLocation.Notification,
+        title: 'Syncing registry from GitHub...',
+        cancellable: false
+      }, async () => {
+        try {
+          const result = await pullLatestRegistry(currentRoot);
+          refreshAll();
+          vscode.window.showInformationMessage(`Agents Hub: ${result.message || 'Registry synchronized successfully.'}`);
+        } catch (err) {
+          vscode.window.showErrorMessage(`Sync failed: ${err.message}`);
+        }
+      });
     })
   );
 
@@ -495,6 +640,14 @@ function activate(context) {
       }
     })
   );
+
+  // Background update check on startup (if enabled)
+  const autoCheck = vscode.workspace.getConfiguration('agentsHub').get('autoCheckUpdates');
+  if (autoCheck !== false) {
+    setTimeout(() => {
+      performUpdateCheck(false);
+    }, 3000);
+  }
 }
 
 function deactivate() {}

@@ -9,7 +9,8 @@ const os = require('os');
  * 2. Environment Variable (AGENTS_HUB_PATH)
  * 3. Auto-detected from current workspace (.agents/plugins.json inheritance)
  * 4. Auto-detected if current workspace itself contains plugins/
- * 5. Single default fallback: ~/Developer/agents-hub
+ * 5. Managed auto-clone path: ~/.agents-hub
+ * 6. Default fallback path: ~/Developer/agents-hub
  */
 function resolveRegistryRoot(workspaceRoot, configuredSetting, envVar) {
   // 1. Explicit setting
@@ -57,7 +58,13 @@ function resolveRegistryRoot(workspaceRoot, configuredSetting, envVar) {
     }
   }
 
-  // 5. Default auto-detect path: ~/Developer/agents-hub
+  // 5. Managed auto-clone path: ~/.agents-hub
+  const managedPath = path.join(os.homedir(), '.agents-hub');
+  if (fs.existsSync(managedPath) && fs.existsSync(path.join(managedPath, 'plugins'))) {
+    return managedPath;
+  }
+
+  // 6. Default fallback: ~/Developer/agents-hub
   const defaultPath = path.join(os.homedir(), 'Developer', 'agents-hub');
   if (fs.existsSync(defaultPath) && fs.existsSync(path.join(defaultPath, 'plugins'))) {
     return defaultPath;
