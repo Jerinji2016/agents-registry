@@ -4,6 +4,11 @@
   "description": "Visual manager and inspector for AI coding rules, progressive skills, and stack plugins.",
   "version": "1.0.0",
   "publisher": "antigravity",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jerinji2016/agents-registry"
+  },
   "engines": {
     "vscode": "^1.80.0"
   },
