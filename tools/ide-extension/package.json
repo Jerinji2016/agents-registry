@@ -34,15 +34,15 @@
       "agents-hub-container": [
         {
           "id": "agentsHub.stacksView",
-          "name": "STACK PLUGINS"
+          "name": "HUB"
         },
         {
           "id": "agentsHub.rulesView",
-          "name": "ACTIVE PLUGINS"
+          "name": "ACTIVE"
         },
         {
           "id": "agentsHub.configView",
-          "name": "Registry Configuration"
+          "name": "SETTINGS"
         }
       ]
     },
@@ -77,6 +77,16 @@
         "icon": "$(discard)"
       },
       {
+        "command": "agentsHub.syncRegistry",
+        "title": "Sync Registry",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "agentsHub.checkUpdates",
+        "title": "Check for Extension Updates",
+        "icon": "$(sync)"
+      },
+      {
         "command": "agentsHub.validate",
         "title": "Validate Guidelines Registry"
       }
@@ -84,7 +94,7 @@
     "viewsWelcome": [
       {
         "view": "agentsHub.stacksView",
-        "contents": "No central Agents Hub registry found.\n\nSelect your central `agents-hub` directory to view stack plugins, architectural rules, and progressive skills.\n[$(folder-opened) Select Registry Folder](command:agentsHub.setRegistryPath)\n[$(refresh) Auto-Detect Registry](command:agentsHub.resetRegistryPath)"
+        "contents": "No central Agents Hub registry found.\n\nSync the registry or select an existing local folder.\n[$(cloud-download) Sync Registry](command:agentsHub.syncRegistry)\n[$(folder-opened) Select Local Registry Folder](command:agentsHub.setRegistryPath)\n[$(refresh) Auto-Detect](command:agentsHub.resetRegistryPath)"
       }
     ],
     "configuration": {
@@ -94,6 +104,11 @@
           "type": "string",
           "default": "",
           "description": "Custom path to the central agents-hub directory (leave empty for auto-detect)."
+        },
+        "agentsHub.autoCheckUpdates": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically check for new extension VSIX releases on startup."
         }
       }
     },
@@ -102,12 +117,17 @@
         {
           "command": "agentsHub.refresh",
           "when": "view == agentsHub.stacksView || view == agentsHub.rulesView || view == agentsHub.configView",
-          "group": "navigation"
+          "group": "navigation@1"
+        },
+        {
+          "command": "agentsHub.syncRegistry",
+          "when": "view == agentsHub.stacksView || view == agentsHub.configView",
+          "group": "navigation@2"
         },
         {
           "command": "agentsHub.setRegistryPath",
           "when": "view == agentsHub.configView || view == agentsHub.stacksView",
-          "group": "navigation"
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [

@@ -26,8 +26,15 @@ describe('Extension Resolver & Logic Unit Tests', () => {
   });
 
   it('should ignore invalid configured setting and fallback', () => {
-    const result = resolveRegistryRoot(tempWorkspace, '/invalid/non/existent/path', undefined);
-    assert.strictEqual(result, undefined);
+    const invalidPath = '/invalid/non/existent/path';
+    const result = resolveRegistryRoot(tempWorkspace, invalidPath, undefined);
+    assert.notStrictEqual(result, invalidPath);
+    const managedDefault = path.join(os.homedir(), '.agents-hub');
+    if (fs.existsSync(managedDefault) && fs.existsSync(path.join(managedDefault, 'plugins'))) {
+      assert.strictEqual(result, managedDefault);
+    } else {
+      assert.strictEqual(result, undefined);
+    }
   });
 
   it('should prioritize environment variable if setting is empty', () => {

@@ -57,7 +57,7 @@ agents-hub --help
 #### Via the IDE Extension (Visual)
 1. Open your project in Antigravity IDE.
 2. Click the **Agents Hub** icon on the left Activity Bar.
-3. In the **STACK PLUGINS** panel, click **`+` (Add)** next to your stack (e.g. `flutter` or `react`).
+3. In the **HUB** panel, click **`+` (Add)** next to your stack (e.g. `flutter` or `react`).
 4. The plugin and its rules/skills are immediately active for your project.
 
 #### Via CLI
