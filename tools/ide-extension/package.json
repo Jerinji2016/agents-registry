@@ -34,11 +34,11 @@
       "agents-hub-container": [
         {
           "id": "agentsHub.stacksView",
-          "name": "Stack Plugins & Inherited Bundles"
+          "name": "STACK PLUGINS"
         },
         {
           "id": "agentsHub.rulesView",
-          "name": "Active Guidelines & Invariants"
+          "name": "ACTIVE PLUGINS"
         },
         {
           "id": "agentsHub.configView",
@@ -53,9 +53,14 @@
         "icon": "$(refresh)"
       },
       {
-        "command": "agentsHub.toggleStack",
+        "command": "agentsHub.addStack",
         "title": "Add",
         "icon": "$(plus)"
+      },
+      {
+        "command": "agentsHub.removeStack",
+        "title": "Remove",
+        "icon": "$(dash)"
       },
       {
         "command": "agentsHub.openRule",
@@ -107,8 +112,13 @@
       ],
       "view/item/context": [
         {
-          "command": "agentsHub.toggleStack",
-          "when": "view == agentsHub.stacksView && viewItem == stackItem",
+          "command": "agentsHub.addStack",
+          "when": "viewItem == unlinkedStackItem",
+          "group": "inline"
+        },
+        {
+          "command": "agentsHub.removeStack",
+          "when": "viewItem == linkedStackItem || viewItem == activeLinkedStackItem",
           "group": "inline"
         }
       ]

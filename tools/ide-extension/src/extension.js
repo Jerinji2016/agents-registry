@@ -85,7 +85,6 @@ class StacksProvider {
     const workspaceRoot = this.getWorkspaceRoot();
     const registryRoot = resolveRegistryRoot(workspaceRoot);
 
-    // If registry is not found, return empty array so viewsWelcome renders with rich UI & buttons
     if (!registryRoot || !fs.existsSync(registryRoot) || !fs.existsSync(path.join(registryRoot, 'plugins'))) {
       return Promise.resolve([]);
     }
@@ -109,7 +108,7 @@ class StacksProvider {
         );
         item.description = isLinked ? '● Active' : '○ Inactive';
         item.iconPath = new vscode.ThemeIcon(isLinked ? 'pass-filled' : 'circle-outline');
-        item.contextValue = 'stackItem';
+        item.contextValue = isLinked ? 'linkedStackItem' : 'unlinkedStackItem';
         item.pluginName = p;
         item.manifestPath = manifestPath;
         item.isLinked = isLinked;
@@ -117,43 +116,68 @@ class StacksProvider {
       });
 
       return Promise.resolve(items);
-    } else if (element.pluginName) {
+    } else if (element.contextValue === 'stackItem' || element.contextValue === 'linkedStackItem' || element.contextValue === 'unlinkedStackItem') {
+      // Group into non-collapsible / expanded groups: Rules & Skills
       const pPath = path.join(registryRoot, 'plugins', element.pluginName);
-      const subItems = [];
+      const groups = [];
 
       const rulesDir = path.join(pPath, 'rules');
       if (fs.existsSync(rulesDir)) {
-        const rules = fs.readdirSync(rulesDir).filter(f => f.endsWith('.md'));
-        rules.forEach(r => {
-          const rulePath = path.join(rulesDir, r);
-          const rItem = new vscode.TreeItem(r, vscode.TreeItemCollapsibleState.None);
-          rItem.iconPath = new vscode.ThemeIcon('book');
-          rItem.command = {
-            command: 'agentsHub.openRule',
-            title: 'Open Rule',
-            arguments: [rulePath]
-          };
-          subItems.push(rItem);
-        });
+        const ruleFiles = fs.readdirSync(rulesDir).filter(f => f.endsWith('.md'));
+        if (ruleFiles.length > 0) {
+          const rulesGroup = new vscode.TreeItem('Rules', vscode.TreeItemCollapsibleState.Expanded);
+          rulesGroup.iconPath = new vscode.ThemeIcon('library');
+          rulesGroup.contextValue = 'rulesGroup';
+          rulesGroup.pluginName = element.pluginName;
+          rulesGroup.rulesDir = rulesDir;
+          groups.push(rulesGroup);
+        }
       }
 
       const skillsDir = path.join(pPath, 'skills');
       if (fs.existsSync(skillsDir)) {
-        const skills = fs.readdirSync(skillsDir);
-        skills.forEach(s => {
-          const sPath = path.join(skillsDir, s, 'SKILL.md');
-          const sItem = new vscode.TreeItem(`skill: ${s}`, vscode.TreeItemCollapsibleState.None);
-          sItem.iconPath = new vscode.ThemeIcon('zap');
-          sItem.command = {
-            command: 'agentsHub.openRule',
-            title: 'Open Skill',
-            arguments: [sPath]
-          };
-          subItems.push(sItem);
-        });
+        const skillFolders = fs.readdirSync(skillsDir);
+        if (skillFolders.length > 0) {
+          const skillsGroup = new vscode.TreeItem('Skills', vscode.TreeItemCollapsibleState.Expanded);
+          skillsGroup.iconPath = new vscode.ThemeIcon('zap');
+          skillsGroup.contextValue = 'skillsGroup';
+          skillsGroup.pluginName = element.pluginName;
+          skillsGroup.skillsDir = skillsDir;
+          groups.push(skillsGroup);
+        }
       }
 
-      return Promise.resolve(subItems);
+      return Promise.resolve(groups);
+    } else if (element.contextValue === 'rulesGroup') {
+      if (!element.rulesDir || !fs.existsSync(element.rulesDir)) return Promise.resolve([]);
+      const rules = fs.readdirSync(element.rulesDir).filter(f => f.endsWith('.md'));
+      const items = rules.map(r => {
+        const rulePath = path.join(element.rulesDir, r);
+        const rItem = new vscode.TreeItem(r, vscode.TreeItemCollapsibleState.None);
+        rItem.iconPath = new vscode.ThemeIcon('file-text');
+        rItem.command = {
+          command: 'agentsHub.openRule',
+          title: 'Open Rule',
+          arguments: [rulePath]
+        };
+        return rItem;
+      });
+      return Promise.resolve(items);
+    } else if (element.contextValue === 'skillsGroup') {
+      if (!element.skillsDir || !fs.existsSync(element.skillsDir)) return Promise.resolve([]);
+      const skills = fs.readdirSync(element.skillsDir);
+      const items = skills.map(s => {
+        const sPath = path.join(element.skillsDir, s, 'SKILL.md');
+        const sItem = new vscode.TreeItem(s, vscode.TreeItemCollapsibleState.None);
+        sItem.iconPath = new vscode.ThemeIcon('zap');
+        sItem.command = {
+          command: 'agentsHub.openRule',
+          title: 'Open Skill',
+          arguments: [sPath]
+        };
+        return sItem;
+      });
+      return Promise.resolve(items);
     }
 
     return Promise.resolve([]);
@@ -176,7 +200,7 @@ class StacksProvider {
   }
 }
 
-class ActiveRulesProvider {
+class ActivePluginsProvider {
   constructor(getWorkspaceRoot) {
     this.getWorkspaceRoot = getWorkspaceRoot;
     this._onDidChangeTreeData = new vscode.EventEmitter();
@@ -195,25 +219,137 @@ class ActiveRulesProvider {
     const workspaceRoot = this.getWorkspaceRoot();
     if (!workspaceRoot) return Promise.resolve([]);
 
-    const items = [];
-    const localRulesDir = path.join(workspaceRoot, '.agents', 'rules');
+    if (!element) {
+      const items = [];
+      const pluginsConfig = path.join(workspaceRoot, '.agents', 'plugins.json');
 
-    if (fs.existsSync(localRulesDir)) {
-      const files = fs.readdirSync(localRulesDir).filter(f => f.endsWith('.md'));
-      files.forEach(f => {
+      // 1. Linked Plugins
+      if (fs.existsSync(pluginsConfig)) {
+        try {
+          const data = JSON.parse(fs.readFileSync(pluginsConfig, 'utf8'));
+          if (Array.isArray(data.inherits)) {
+            data.inherits.forEach(entry => {
+              if (entry && entry.path) {
+                const resolved = entry.path.startsWith('~')
+                  ? path.join(os.homedir(), entry.path.slice(1))
+                  : entry.path;
+                const match = resolved.match(/(.+)[/\\]plugins[/\\]([^/\\]+)[/\\]plugin\.json/);
+                const pluginName = match ? match[2] : path.basename(path.dirname(resolved));
+
+                const item = new vscode.TreeItem(
+                  pluginName,
+                  vscode.TreeItemCollapsibleState.Expanded
+                );
+                item.description = '● Active';
+                item.iconPath = new vscode.ThemeIcon('pass-filled');
+                item.contextValue = 'activeLinkedStackItem';
+                item.pluginName = pluginName;
+                item.manifestPath = resolved;
+                item.pluginRoot = path.dirname(resolved);
+                items.push(item);
+              }
+            });
+          }
+        } catch (_) {}
+      }
+
+      // 2. Local Project Overrides
+      const localRulesDir = path.join(workspaceRoot, '.agents', 'rules');
+      if (fs.existsSync(localRulesDir)) {
+        const overrideFiles = fs.readdirSync(localRulesDir).filter(f => f.endsWith('.md'));
+        if (overrideFiles.length > 0) {
+          const overridesGroup = new vscode.TreeItem('Local Overrides', vscode.TreeItemCollapsibleState.Expanded);
+          overridesGroup.iconPath = new vscode.ThemeIcon('edit');
+          overridesGroup.contextValue = 'localOverridesGroup';
+          overridesGroup.localRulesDir = localRulesDir;
+          items.push(overridesGroup);
+        }
+      }
+
+      if (items.length === 0) {
+        const emptyItem = new vscode.TreeItem('No active plugins in this workspace', vscode.TreeItemCollapsibleState.None);
+        emptyItem.description = 'Click + in STACK PLUGINS to add';
+        emptyItem.iconPath = new vscode.ThemeIcon('info');
+        return Promise.resolve([emptyItem]);
+      }
+
+      return Promise.resolve(items);
+    } else if (element.contextValue === 'activeLinkedStackItem') {
+      // Group active stack into Rules & Skills
+      const groups = [];
+      const rulesDir = path.join(element.pluginRoot, 'rules');
+      if (fs.existsSync(rulesDir)) {
+        const ruleFiles = fs.readdirSync(rulesDir).filter(f => f.endsWith('.md'));
+        if (ruleFiles.length > 0) {
+          const rulesGroup = new vscode.TreeItem('Rules', vscode.TreeItemCollapsibleState.Expanded);
+          rulesGroup.iconPath = new vscode.ThemeIcon('library');
+          rulesGroup.contextValue = 'rulesGroup';
+          rulesGroup.rulesDir = rulesDir;
+          groups.push(rulesGroup);
+        }
+      }
+
+      const skillsDir = path.join(element.pluginRoot, 'skills');
+      if (fs.existsSync(skillsDir)) {
+        const skillFolders = fs.readdirSync(skillsDir);
+        if (skillFolders.length > 0) {
+          const skillsGroup = new vscode.TreeItem('Skills', vscode.TreeItemCollapsibleState.Expanded);
+          skillsGroup.iconPath = new vscode.ThemeIcon('zap');
+          skillsGroup.contextValue = 'skillsGroup';
+          skillsGroup.skillsDir = skillsDir;
+          groups.push(skillsGroup);
+        }
+      }
+
+      return Promise.resolve(groups);
+    } else if (element.contextValue === 'rulesGroup') {
+      if (!element.rulesDir || !fs.existsSync(element.rulesDir)) return Promise.resolve([]);
+      const rules = fs.readdirSync(element.rulesDir).filter(f => f.endsWith('.md'));
+      const items = rules.map(r => {
+        const rulePath = path.join(element.rulesDir, r);
+        const rItem = new vscode.TreeItem(r, vscode.TreeItemCollapsibleState.None);
+        rItem.iconPath = new vscode.ThemeIcon('file-text');
+        rItem.command = {
+          command: 'agentsHub.openRule',
+          title: 'Open Rule',
+          arguments: [rulePath]
+        };
+        return rItem;
+      });
+      return Promise.resolve(items);
+    } else if (element.contextValue === 'skillsGroup') {
+      if (!element.skillsDir || !fs.existsSync(element.skillsDir)) return Promise.resolve([]);
+      const skills = fs.readdirSync(element.skillsDir);
+      const items = skills.map(s => {
+        const sPath = path.join(element.skillsDir, s, 'SKILL.md');
+        const sItem = new vscode.TreeItem(s, vscode.TreeItemCollapsibleState.None);
+        sItem.iconPath = new vscode.ThemeIcon('zap');
+        sItem.command = {
+          command: 'agentsHub.openRule',
+          title: 'Open Skill',
+          arguments: [sPath]
+        };
+        return sItem;
+      });
+      return Promise.resolve(items);
+    } else if (element.contextValue === 'localOverridesGroup') {
+      if (!element.localRulesDir || !fs.existsSync(element.localRulesDir)) return Promise.resolve([]);
+      const files = fs.readdirSync(element.localRulesDir).filter(f => f.endsWith('.md'));
+      const items = files.map(f => {
         const item = new vscode.TreeItem(f, vscode.TreeItemCollapsibleState.None);
         item.description = 'Local Override';
         item.iconPath = new vscode.ThemeIcon('edit');
         item.command = {
           command: 'agentsHub.openRule',
           title: 'Open Override Rule',
-          arguments: [path.join(localRulesDir, f)]
+          arguments: [path.join(element.localRulesDir, f)]
         };
-        items.push(item);
+        return item;
       });
+      return Promise.resolve(items);
     }
 
-    return Promise.resolve(items);
+    return Promise.resolve([]);
   }
 }
 
@@ -302,16 +438,16 @@ function activate(context) {
   };
 
   const stacksProvider = new StacksProvider(getWorkspaceRoot);
-  const rulesProvider = new ActiveRulesProvider(getWorkspaceRoot);
+  const activePluginsProvider = new ActivePluginsProvider(getWorkspaceRoot);
   const configProvider = new RegistryConfigProvider(getWorkspaceRoot);
 
   vscode.window.registerTreeDataProvider('agentsHub.stacksView', stacksProvider);
-  vscode.window.registerTreeDataProvider('agentsHub.rulesView', rulesProvider);
+  vscode.window.registerTreeDataProvider('agentsHub.rulesView', activePluginsProvider);
   vscode.window.registerTreeDataProvider('agentsHub.configView', configProvider);
 
   function refreshAll() {
     stacksProvider.refresh();
-    rulesProvider.refresh();
+    activePluginsProvider.refresh();
     configProvider.refresh();
   }
 
@@ -362,46 +498,55 @@ function activate(context) {
     })
   );
 
-  context.subscriptions.push(
-    vscode.commands.registerCommand('agentsHub.toggleStack', (item) => {
-      const workspaceRoot = getWorkspaceRoot();
-      if (!workspaceRoot) {
-        vscode.window.showErrorMessage('No active workspace open to link stack.');
-        return;
-      }
-      if (!item || !item.manifestPath) return;
+  function modifyStackInheritance(item, add) {
+    const workspaceRoot = getWorkspaceRoot();
+    if (!workspaceRoot) {
+      vscode.window.showErrorMessage('No active workspace open.');
+      return;
+    }
+    if (!item || !item.manifestPath) return;
 
-      const agentsDir = path.join(workspaceRoot, '.agents');
-      if (!fs.existsSync(agentsDir)) {
-        fs.mkdirSync(agentsDir, { recursive: true });
-      }
+    const agentsDir = path.join(workspaceRoot, '.agents');
+    if (!fs.existsSync(agentsDir)) {
+      fs.mkdirSync(agentsDir, { recursive: true });
+    }
 
-      const configFile = path.join(agentsDir, 'plugins.json');
-      let config = { inherits: [] };
-      if (fs.existsSync(configFile)) {
-        try {
-          config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-          if (!Array.isArray(config.inherits)) config.inherits = [];
-        } catch (_) {}
-      }
+    const configFile = path.join(agentsDir, 'plugins.json');
+    let config = { inherits: [] };
+    if (fs.existsSync(configFile)) {
+      try {
+        config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+        if (!Array.isArray(config.inherits)) config.inherits = [];
+      } catch (_) {}
+    }
 
-      const targetPath = item.manifestPath;
+    const targetPath = item.manifestPath;
 
-      if (item.isLinked) {
-        config.inherits = config.inherits.filter(i => {
-          const p = i.path.startsWith('~') ? path.join(os.homedir(), i.path.slice(1)) : i.path;
-          return p !== targetPath;
-        });
-        fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
-        vscode.window.showInformationMessage(`Removed ${item.pluginName} from current project.`);
-      } else {
+    if (!add) {
+      config.inherits = config.inherits.filter(i => {
+        const p = i.path.startsWith('~') ? path.join(os.homedir(), i.path.slice(1)) : i.path;
+        return p !== targetPath;
+      });
+      fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
+      vscode.window.showInformationMessage(`Removed ${item.pluginName} from current project.`);
+    } else {
+      const alreadyExists = config.inherits.some(i => {
+        const p = i.path.startsWith('~') ? path.join(os.homedir(), i.path.slice(1)) : i.path;
+        return p === targetPath;
+      });
+      if (!alreadyExists) {
         config.inherits.push({ path: targetPath });
         fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
-        vscode.window.showInformationMessage(`Added ${item.pluginName} to current project.`);
       }
+      vscode.window.showInformationMessage(`Added ${item.pluginName} to current project.`);
+    }
 
-      stacksProvider.refresh();
-    })
+    refreshAll();
+  }
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('agentsHub.addStack', (item) => modifyStackInheritance(item, true)),
+    vscode.commands.registerCommand('agentsHub.removeStack', (item) => modifyStackInheritance(item, false))
   );
 
   context.subscriptions.push(
