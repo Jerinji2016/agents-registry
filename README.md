@@ -1,70 +1,76 @@
 # Agents Hub — Central Agent Customizations & Guidelines Registry
 
-A centralized, version-controlled repository of AI coding standards, architectural rules, progressive skills, and plugin bundles for Antigravity and AI pair-programming agents.
+[![Version](https://img.shields.io/github/v/release/Jerinji2016/agents-registry?color=blue&label=version)](https://github.com/Jerinji2016/agents-registry/releases)
+[![Tests](https://github.com/Jerinji2016/agents-registry/actions/workflows/ci.yml/badge.svg)](https://github.com/Jerinji2016/agents-registry/actions/workflows/ci.yml)
+[![Release](https://github.com/Jerinji2016/agents-registry/actions/workflows/release.yml/badge.svg)](https://github.com/Jerinji2016/agents-registry/actions/workflows/release.yml)
+
+A centralized, version-controlled repository of AI coding standards, architectural rules, progressive skills, and plugin bundles for Google Antigravity and AI pair-programming agents.
+
+> 📖 **Deep Dive**: For comprehensive architectural specifications, progressive disclosure theory, and layer boundary rules, see [docs/architecture.md](./docs/architecture.md).
 
 ---
 
-## 📁 Repository Structure
+## 📦 Installation Guide
 
-```text
-agents-hub/
-├── core/                                # Universal base standards & skills
-│   ├── rules/
-│   │   └── git_workflow.md             # Conventional commits, PR guidelines, git flow
-│   └── skills/
-│       └── code-review/
-│           └── SKILL.md                # General code review & security sanity checklist
-│
-├── plugins/                             # Stack-specific Antigravity bundles
-│   ├── flutter/                         # Flutter & Dart architectural standards
-│   │   ├── plugin.json                  # Manifest
-│   │   ├── rules/
-│   │   │   ├── 00_meta_rules.md         # Interactive rule scoping instructions
-│   │   │   ├── clean_architecture.md    # Domain/Data/Presentation boundaries
-│   │   │   ├── riverpod_standards.md    # Riverpod 2.0 generator syntax & immutability
-│   │   │   ├── serialization_dto.md     # Freezed DTOs, mappers & Retrofit streaming
-│   │   │   ├── i18n_assets.md           # Slang and flutter_gen invariants
-│   │   │   └── AGENTS.md                # Consolidated rule aggregator
-│   │   └── skills/
-│   │       ├── slang-i18n/              # Slang translation & build_runner workflows
-│   │       └── flutter-gen/             # flutter_gen asset regeneration
-│   │
-│   └── react/                           # React & Next.js architectural standards
-│       ├── plugin.json                  # Manifest
-│       ├── rules/
-│       │   ├── 00_meta_rules.md         # Interactive rule scoping instructions
-│       │   ├── nextjs_conventions.md    # App Router, Server Components & Server Actions
-│       │   ├── tailwind_conventions.md  # Utility-first styling & design tokens
-│       │   └── AGENTS.md                # Consolidated rule aggregator
-│       └── skills/
-│           └── tailwind-helper/         # Tailwind layout & responsive patterns
-│
-├── skills/                              # Shared universal on-demand skills
-│   └── manage-guidelines/               # Interactive guideline evolution skill
-│       ├── SKILL.md
-│       └── scripts/
-│           └── validate.js              # Rule & skill validator script
-│
-├── templates/                           # Project configuration templates
-│   └── project.agents/
-│       ├── plugins.json                 # Downstream inheritance config
-│       └── rules/
-│           └── project_overrides.md     # Project-scoped overrides template
-│
-└── tools/
-    ├── cli/                             # CLI manager for linking and validating registry
-    │   ├── bin/agents-hub.js
-    │   └── src/
-    └── ide-extension/                   # VS Code / Antigravity IDE Sidebar Extension
+### 1. Antigravity IDE / VS Code Extension
+
+The **Antigravity Agents Hub** extension provides a visual sidebar to inspect active rules and link stack plugins with 1 click.
+
+#### Option A: Download from GitHub Releases (Recommended)
+1. Download the latest `antigravity-agents-hub-X.Y.Z.vsix` from [Releases](https://github.com/Jerinji2016/agents-registry/releases).
+2. Install via terminal:
+   ```bash
+   # In Antigravity IDE:
+   "/Applications/Antigravity IDE.app/Contents/Resources/app/bin/antigravity-ide" --install-extension antigravity-agents-hub-X.Y.Z.vsix
+   
+   # Or in standard VS Code:
+   code --install-extension antigravity-agents-hub-X.Y.Z.vsix
+   ```
+   *Or in the IDE UI: Go to **Extensions** $\rightarrow$ Click **`...`** menu $\rightarrow$ **Install from VSIX...***
+
+#### Option B: Local Development Link
+```bash
+# Symlink directly into Antigravity IDE extensions:
+ln -s "$(pwd)/tools/ide-extension" ~/.antigravity/extensions/antigravity.antigravity-agents-hub-1.0.0
+```
+
+---
+
+### 2. Registry CLI Tool
+
+To use the `agents-hub` command globally from any project terminal:
+
+```bash
+# Link globally via npm:
+npm link
+
+# Verify installation:
+agents-hub --help
 ```
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Linking a Project to this Registry
+### Connecting a Project to Stacks
 
-In your target project (e.g. `my-flutter-app`), create `.agents/plugins.json`:
+#### Via the IDE Extension (Visual)
+1. Open your project in Antigravity IDE.
+2. Click the **Agents Hub** icon on the left Activity Bar.
+3. In the **STACK PLUGINS** panel, click **`+` (Add)** next to your stack (e.g. `flutter` or `react`).
+4. The plugin and its rules/skills are immediately active for your project.
+
+#### Via CLI
+```bash
+# Inside your project directory:
+agents-hub link flutter
+
+# Check active guidelines in the project:
+agents-hub status
+```
+
+#### Via Config File (`.agents/plugins.json`)
+Create `.agents/plugins.json` in your project root:
 
 ```json
 {
@@ -76,49 +82,31 @@ In your target project (e.g. `my-flutter-app`), create `.agents/plugins.json`:
 }
 ```
 
-> **Note**: Paths starting with `~/` automatically resolve relative to your home directory in Antigravity.
+---
 
-Alternatively, use the included CLI tool:
+## 🧪 Testing & Validation
 
-```bash
-# Using global CLI (after npm link):
-agents-hub link flutter --target /path/to/my-flutter-app
-
-# Or directly with node:
-node <path-to-agents-hub>/tools/cli/bin/agents-hub.js link flutter --target /path/to/my-flutter-app
-```
-
-### 2. Validating Registry Rules and Manifests
+The registry includes a zero-dependency automated test suite verifying CLI operations, path resolvers, link integrity, and manifest schemas:
 
 ```bash
-# Inside the agents-hub repository:
+# Run full unit and integration test suite:
+npm test
+
+# Run registry schema and frontmatter validator:
 npm run validate
-# or
-node tools/cli/bin/agents-hub.js validate
-
-# From anywhere (after npm link):
-agents-hub validate
 ```
 
-### 3. Making CLI Globally Available
+---
 
-Run `npm link` inside the `agents-hub` directory:
+## 🤖 Automated Versioning & Releases
 
-```bash
-npm link
-```
+This repository uses **fully automated semantic versioning and release publishing**:
 
-Now you can invoke `agents-hub` directly from any terminal or project workspace:
-- `agents-hub list` — View all available stacks, rules, and skills
-- `agents-hub validate` — Verify manifests, markdown rules, and YAML frontmatter
-- `agents-hub link <stack>` — Link a stack into the current project's `.agents/plugins.json`
-- `agents-hub status` — Inspect active plugins and local overrides in the workspace
+- **Pull Request Workflow**: All development happens in feature branches. When opening a Pull Request targeting `main`, the CI workflow automatically runs the test suite and verifies extension packaging.
+- **Automated Release on Merge**: Merging a PR into `main` automatically analyzes [Conventional Commits](https://www.conventionalcommits.org/), bumps the semantic version (`patch`, `minor`, or `major`), creates the `v*.*.*` git tag, builds the production `.vsix`, and publishes a [GitHub Release](https://github.com/Jerinji2016/agents-registry/releases) with release notes and the `.vsix` download asset.
 
-### 4. Updating Rules (Interactive Scoping Flow)
+---
 
-When an agent is asked to record or update architectural conventions while working inside a downstream project, the agent will prompt:
+## 📄 License
 
-> *"Should this rule be updated in the Central Registry (shared across all projects) or as a Project-Level override (only for this project)?"*
-
-- **Central Registry**: Updates the rule in `<path-to-agents-hub>/plugins/<stack>/rules/`.
-- **Project Level**: Writes the rule in `<project_root>/.agents/rules/project_overrides.md`.
+[MIT](./LICENSE)

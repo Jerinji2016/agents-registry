@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-package:
+    name: Test & Package Extension
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Run test suite & registry validator
+        run: npm test
+
+      - name: Package VS Code / Antigravity IDE Extension (VSIX)
+        run: npm run package:extension
+
+      - name: Upload VSIX build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: antigravity-agents-hub-vsix
+          path: tools/ide-extension/*.vsix
+          retention-days: 30

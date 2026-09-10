@@ -12,7 +12,10 @@
     "test": "node --test tests/",
     "test:all": "node --test tests/ && node tools/cli/bin/agents-hub.js validate",
     "package:extension": "cd tools/ide-extension && npx @vscode/vsce package --no-git-tag-version --no-update-package-json --allow-missing-repository",
-    "install:extension": "\"/Applications/Antigravity IDE.app/Contents/Resources/app/bin/antigravity-ide\" --install-extension tools/ide-extension/antigravity-agents-hub-1.0.0.vsix --force"
+    "install:extension": "\"/Applications/Antigravity IDE.app/Contents/Resources/app/bin/antigravity-ide\" --install-extension tools/ide-extension/antigravity-agents-hub-1.0.0.vsix --force",
+    "bump:patch": "node tools/scripts/bump-version.js patch",
+    "bump:minor": "node tools/scripts/bump-version.js minor",
+    "bump:major": "node tools/scripts/bump-version.js major"
   },
   "keywords": ["antigravity", "agents", "rules", "skills", "registry", "ai-guidelines"],
   "author": "",
