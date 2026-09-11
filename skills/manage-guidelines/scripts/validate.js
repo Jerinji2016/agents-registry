@@ -112,8 +112,10 @@ function runValidation() {
   console.log('\n🔍 Validating Agents Hub Registry...\n');
 
   // 1. Core
-  const coreRulesDir = path.join(ROOT_DIR, 'core', 'rules');
-  const coreSkillsDir = path.join(ROOT_DIR, 'core', 'skills');
+  const coreDir = path.join(ROOT_DIR, 'core');
+  validatePluginManifest(coreDir);
+  const coreRulesDir = path.join(coreDir, 'rules');
+  const coreSkillsDir = path.join(coreDir, 'skills');
   validateRulesDirectory(coreRulesDir);
 
   if (fs.existsSync(coreSkillsDir)) {

@@ -30,8 +30,31 @@ function resolveRegistryRoot(workspaceRoot, configuredSetting, envVar) {
     return envPath;
   }
 
-  // 3. Inspect active workspace .agents/plugins.json (extract registry from inherited path)
+  // 3. Inspect active workspace .agents/plugins/ symlinks
   if (workspaceRoot) {
+    const pluginsDir = path.join(workspaceRoot, '.agents', 'plugins');
+    if (fs.existsSync(pluginsDir)) {
+      try {
+        const entries = fs.readdirSync(pluginsDir);
+        for (const entry of entries) {
+          const fullPath = path.join(pluginsDir, entry);
+          try {
+            if (fs.lstatSync(fullPath).isSymbolicLink()) {
+              const linkTarget = fs.readlinkSync(fullPath);
+              const resolved = path.isAbsolute(linkTarget)
+                ? linkTarget
+                : path.resolve(pluginsDir, linkTarget);
+              const match = resolved.match(/(.+)[/\\](plugins|core)([/\\]|$)/);
+              if (match && fs.existsSync(match[1]) && fs.existsSync(path.join(match[1], 'plugins'))) {
+                return match[1];
+              }
+            }
+          } catch (_) {}
+        }
+      } catch (_) {}
+    }
+
+    // 3b. Fallback: inspect legacy .agents/plugins.json
     const pluginsConfig = path.join(workspaceRoot, '.agents', 'plugins.json');
     if (fs.existsSync(pluginsConfig)) {
       try {

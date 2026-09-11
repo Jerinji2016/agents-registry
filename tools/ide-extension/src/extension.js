@@ -9,6 +9,42 @@ const { checkForExtensionUpdates, downloadFile, isNewerVersion } = require('./up
 const pkgJson = require('../package.json');
 const CURRENT_VERSION = pkgJson.version || '1.0.0';
 
+function isSymlink(targetPath) {
+  try {
+    return fs.lstatSync(targetPath).isSymbolicLink();
+  } catch (_) {
+    return false;
+  }
+}
+
+function createPluginSymlink(sourceDir, destDir) {
+  if (isSymlink(destDir) || fs.existsSync(destDir)) {
+    try {
+      const stats = fs.lstatSync(destDir);
+      if (stats.isSymbolicLink()) {
+        const currentTarget = fs.readlinkSync(destDir);
+        const resolvedCurrent = path.isAbsolute(currentTarget)
+          ? currentTarget
+          : path.resolve(path.dirname(destDir), currentTarget);
+        if (resolvedCurrent === path.resolve(sourceDir)) {
+          return 'already_linked';
+        }
+        fs.unlinkSync(destDir);
+      } else {
+        return 'exists_dir';
+      }
+    } catch (e) {
+      try {
+        fs.unlinkSync(destDir);
+      } catch (_) {}
+    }
+  }
+
+  const symlinkType = process.platform === 'win32' ? 'junction' : 'dir';
+  fs.symlinkSync(sourceDir, destDir, symlinkType);
+  return 'linked';
+}
+
 class StacksProvider {
   constructor(getWorkspaceRoot) {
     this.getWorkspaceRoot = getWorkspaceRoot;
@@ -36,14 +72,14 @@ class StacksProvider {
       const pluginsDir = path.join(registryRoot, 'plugins');
       if (!fs.existsSync(pluginsDir)) return Promise.resolve([]);
 
-      const activeInheritedPaths = this._getInheritedPaths(workspaceRoot);
+      const activePluginNames = this._getActivePluginNames(workspaceRoot);
       const plugins = fs.readdirSync(pluginsDir).filter(p => {
         return fs.statSync(path.join(pluginsDir, p)).isDirectory();
       });
 
       const items = plugins.map(p => {
         const manifestPath = path.join(pluginsDir, p, 'plugin.json');
-        const isLinked = activeInheritedPaths.includes(manifestPath);
+        const isLinked = activePluginNames.includes(p);
 
         const item = new vscode.TreeItem(
           p,
@@ -125,20 +161,43 @@ class StacksProvider {
     return Promise.resolve([]);
   }
 
-  _getInheritedPaths(workspaceRoot) {
+  _getActivePluginNames(workspaceRoot) {
     if (!workspaceRoot) return [];
+    const active = [];
+
+    // 1. Check .agents/plugins/ symlinks
+    const pluginsDir = path.join(workspaceRoot, '.agents', 'plugins');
+    if (fs.existsSync(pluginsDir)) {
+      try {
+        const entries = fs.readdirSync(pluginsDir);
+        for (const entry of entries) {
+          const entryPath = path.join(pluginsDir, entry);
+          if (fs.existsSync(entryPath)) {
+            active.push(entry);
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 2. Check legacy .agents/plugins.json for backwards compatibility
     const pluginsConfig = path.join(workspaceRoot, '.agents', 'plugins.json');
-    if (!fs.existsSync(pluginsConfig)) return [];
-    try {
-      const data = JSON.parse(fs.readFileSync(pluginsConfig, 'utf8'));
-      if (Array.isArray(data.inherits)) {
-        return data.inherits.map(i => {
-          if (!i || !i.path) return '';
-          return i.path.startsWith('~') ? path.join(os.homedir(), i.path.slice(1)) : i.path;
-        });
-      }
-    } catch (_) {}
-    return [];
+    if (fs.existsSync(pluginsConfig)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(pluginsConfig, 'utf8'));
+        if (Array.isArray(data.inherits)) {
+          data.inherits.forEach(entry => {
+            if (entry && entry.path) {
+              const match = entry.path.match(/(.+)[/\\]plugins[/\\]([^/\\]+)[/\\]plugin\.json/);
+              if (match && match[2] && !active.includes(match[2])) {
+                active.push(match[2]);
+              }
+            }
+          });
+        }
+      } catch (_) {}
+    }
+
+    return active;
   }
 }
 
@@ -163,9 +222,34 @@ class ActivePluginsProvider {
 
     if (!element) {
       const items = [];
-      const pluginsConfig = path.join(workspaceRoot, '.agents', 'plugins.json');
+      const discoveredPluginNames = new Set();
 
-      // 1. Linked Plugins
+      // 1. Linked Plugins via .agents/plugins/
+      const pluginsDir = path.join(workspaceRoot, '.agents', 'plugins');
+      if (fs.existsSync(pluginsDir)) {
+        try {
+          const entries = fs.readdirSync(pluginsDir);
+          entries.forEach(entry => {
+            const pluginFolder = path.join(pluginsDir, entry);
+            if (fs.existsSync(pluginFolder)) {
+              discoveredPluginNames.add(entry);
+              const item = new vscode.TreeItem(
+                entry,
+                vscode.TreeItemCollapsibleState.Expanded
+              );
+              item.description = entry === 'core' ? '● Core Standards' : '● Active';
+              item.iconPath = new vscode.ThemeIcon('pass-filled');
+              item.contextValue = 'activeLinkedStackItem';
+              item.pluginName = entry;
+              item.pluginRoot = pluginFolder;
+              items.push(item);
+            }
+          });
+        } catch (_) {}
+      }
+
+      // 2. Legacy .agents/plugins.json fallback
+      const pluginsConfig = path.join(workspaceRoot, '.agents', 'plugins.json');
       if (fs.existsSync(pluginsConfig)) {
         try {
           const data = JSON.parse(fs.readFileSync(pluginsConfig, 'utf8'));
@@ -178,24 +262,27 @@ class ActivePluginsProvider {
                 const match = resolved.match(/(.+)[/\\]plugins[/\\]([^/\\]+)[/\\]plugin\.json/);
                 const pluginName = match ? match[2] : path.basename(path.dirname(resolved));
 
-                const item = new vscode.TreeItem(
-                  pluginName,
-                  vscode.TreeItemCollapsibleState.Expanded
-                );
-                item.description = '● Active';
-                item.iconPath = new vscode.ThemeIcon('pass-filled');
-                item.contextValue = 'activeLinkedStackItem';
-                item.pluginName = pluginName;
-                item.manifestPath = resolved;
-                item.pluginRoot = path.dirname(resolved);
-                items.push(item);
+                if (!discoveredPluginNames.has(pluginName)) {
+                  discoveredPluginNames.add(pluginName);
+                  const item = new vscode.TreeItem(
+                    pluginName,
+                    vscode.TreeItemCollapsibleState.Expanded
+                  );
+                  item.description = '● Active';
+                  item.iconPath = new vscode.ThemeIcon('pass-filled');
+                  item.contextValue = 'activeLinkedStackItem';
+                  item.pluginName = pluginName;
+                  item.manifestPath = resolved;
+                  item.pluginRoot = path.dirname(resolved);
+                  items.push(item);
+                }
               }
             });
           }
         } catch (_) {}
       }
 
-      // 2. Local Project Overrides
+      // 3. Local Project Overrides
       const localRulesDir = path.join(workspaceRoot, '.agents', 'rules');
       if (fs.existsSync(localRulesDir)) {
         const overrideFiles = fs.readdirSync(localRulesDir).filter(f => f.endsWith('.md'));
@@ -588,41 +675,62 @@ function activate(context) {
       vscode.window.showErrorMessage('No active workspace open.');
       return;
     }
-    if (!item || !item.manifestPath) return;
+    if (!item || !item.pluginName) return;
 
-    const agentsDir = path.join(workspaceRoot, '.agents');
-    if (!fs.existsSync(agentsDir)) {
-      fs.mkdirSync(agentsDir, { recursive: true });
+    const registryRoot = resolveRegistryRoot(workspaceRoot);
+    if (!registryRoot) {
+      vscode.window.showErrorMessage('Central registry root could not be located.');
+      return;
     }
 
-    const configFile = path.join(agentsDir, 'plugins.json');
-    let config = { inherits: [] };
-    if (fs.existsSync(configFile)) {
-      try {
-        config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
-        if (!Array.isArray(config.inherits)) config.inherits = [];
-      } catch (_) {}
+    const agentsPluginsDir = path.join(workspaceRoot, '.agents', 'plugins');
+    if (!fs.existsSync(agentsPluginsDir)) {
+      fs.mkdirSync(agentsPluginsDir, { recursive: true });
     }
 
-    const targetPath = item.manifestPath;
+    const stackDest = path.join(agentsPluginsDir, item.pluginName);
+    const coreDest = path.join(agentsPluginsDir, 'core');
+    const coreSource = path.join(registryRoot, 'core');
+    const stackSource = path.join(registryRoot, 'plugins', item.pluginName);
 
     if (!add) {
-      config.inherits = config.inherits.filter(i => {
-        const p = i.path.startsWith('~') ? path.join(os.homedir(), i.path.slice(1)) : i.path;
-        return p !== targetPath;
-      });
-      fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
-      vscode.window.showInformationMessage(`Removed ${item.pluginName} from current project.`);
-    } else {
-      const alreadyExists = config.inherits.some(i => {
-        const p = i.path.startsWith('~') ? path.join(os.homedir(), i.path.slice(1)) : i.path;
-        return p === targetPath;
-      });
-      if (!alreadyExists) {
-        config.inherits.push({ path: targetPath });
-        fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + '\n');
+      // Unlink stack
+      if (isSymlink(stackDest) || fs.existsSync(stackDest)) {
+        try {
+          const stats = fs.lstatSync(stackDest);
+          if (stats.isSymbolicLink()) {
+            fs.unlinkSync(stackDest);
+          } else {
+            fs.rmSync(stackDest, { recursive: true, force: true });
+          }
+        } catch (e) {
+          try { fs.unlinkSync(stackDest); } catch (_) {}
+        }
       }
-      vscode.window.showInformationMessage(`Added ${item.pluginName} to current project.`);
+      vscode.window.showInformationMessage(`Unlinked ${item.pluginName} from current project.`);
+    } else {
+      // 1. Link core
+      if (fs.existsSync(coreSource)) {
+        createPluginSymlink(coreSource, coreDest);
+      }
+
+      // 2. Link stack
+      if (fs.existsSync(stackSource)) {
+        createPluginSymlink(stackSource, stackDest);
+      }
+
+      // 3. Initialize project overrides
+      const rulesDir = path.join(workspaceRoot, '.agents', 'rules');
+      const overridesFile = path.join(rulesDir, 'project_overrides.md');
+      if (!fs.existsSync(overridesFile)) {
+        fs.mkdirSync(rulesDir, { recursive: true });
+        const templateOverrides = path.join(registryRoot, 'templates', 'project.agents', 'rules', 'project_overrides.md');
+        if (fs.existsSync(templateOverrides)) {
+          fs.copyFileSync(templateOverrides, overridesFile);
+        }
+      }
+
+      vscode.window.showInformationMessage(`Linked ${item.pluginName} and core into .agents/plugins/`);
     }
 
     refreshAll();
