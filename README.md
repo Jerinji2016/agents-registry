@@ -69,17 +69,12 @@ agents-hub link flutter
 agents-hub status
 ```
 
-#### Via Config File (`.agents/plugins.json`)
-Create `.agents/plugins.json` in your project root:
-
-```json
-{
-  "inherits": [
-    {
-      "path": "~/path/to/agents-hub/plugins/flutter/plugin.json"
-    }
-  ]
-}
+#### Via Direct Symlink / Manual Link
+```bash
+# Inside your project root:
+mkdir -p .agents/plugins
+ln -s ~/Developer/agents-hub/core .agents/plugins/core
+ln -s ~/Developer/agents-hub/plugins/flutter .agents/plugins/flutter
 ```
 
 ---

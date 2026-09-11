@@ -5,3 +5,5 @@ dist/
 out/
 .vscode-test/
 *.vsix
+
+.agents

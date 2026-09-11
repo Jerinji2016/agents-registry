@@ -17,7 +17,8 @@ This master document consolidates the architectural conventions, state managemen
   - `presentation/`: `screens/` (@RoutePage), `widgets/`, `providers/`, `router/`, `i18n/` (`<feature>_<locale>.i18n.json`).
   - `di/`: Feature DI initialization (`<feature>_di.dart`).
 - **Boundaries**: Domain is pure Dart (no UI, no network/JSON dependencies). Data isolates serialization. Presentation uses Riverpod notifiers and use cases.
-- **Barrel Files**: Maintain alphabetically-sorted `entities.dart` and `models.dart`.
+- **Barrel Files**: Maintain alphabetically-sorted `entities.dart`, `usecases.dart`, and `models.dart`.
+- **Subdomain DTOs**: Group feature DTOs with numerous models into subdirectories under `data/models/<subdomain>/`.
 - See detailed rules: [clean_architecture.md](./clean_architecture.md).
 
 ---

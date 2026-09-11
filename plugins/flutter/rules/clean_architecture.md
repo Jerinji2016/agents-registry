@@ -15,12 +15,14 @@ lib/src/features/<feature_name>/
 │   │   └── entities.dart                 # Alphabetically-sorted barrel file
 │   ├── repositories/                     # Abstract repository interface contracts
 │   ├── usecases/                         # Single-purpose action classes (@lazySingleton)
+│   │   └── usecases.dart                 # Alphabetically-sorted barrel file
 │   └── providers/                        # Riverpod providers bridging Domain to Presentation
 │
 ├── data/                                 # Technical implementation layer
 │   ├── data_sources/                     # Retrofit API clients, local DBs, Key-Value helpers
 │   ├── models/                           # Network DTOs, request/response models (Freezed + JSON)
-│   │   └── models.dart                   # Alphabetically-sorted barrel file
+│   │   ├── <subdomain>/                  # Optional: Grouped by subdomain (e.g. users/, auth/)
+│   │   └── models.dart                   # Alphabetically-sorted barrel file (exports all DTOs)
 │   ├── repositories/                     # Concrete implementations of domain repository contracts
 │   └── interceptors/                     # HTTP/API request & response interceptors
 │
@@ -42,6 +44,12 @@ For large features containing multiple distinct screen groups, subdivide `presen
 - `core/`: Feature-specific core theme extensions, shared helper services, or common widgets.
 - `<screen_subdomain>/`: Screen-group folders containing `screens/`, `widgets/`, and `providers/`.
 - `i18n/`: Feature-specific localization files.
+
+### Subdivided DTO Models Structure (For Features with Multiple Subdomains)
+When a feature manages multiple subdomains or numerous DTO operations (e.g., `CreateUserDto`, `UpdateUserDto`, `DeleteUserDto`), group related DTOs into dedicated subdirectories under `data/models/`:
+- `data/models/users/`: `create_user_dto.dart`, `update_user_dto.dart`, `delete_user_dto.dart`, etc.
+- `data/models/auth/`: `login_request_dto.dart`, `auth_response_dto.dart`, etc.
+- `data/models/models.dart`: Top-level barrel file re-exporting all subfolder DTOs alphabetically.
 
 ---
 
@@ -125,5 +133,8 @@ Strictly adhere to the following naming standards:
    - ✅ UI widgets watch Riverpod providers exposed by `presentation/providers/` or consume use cases.
 
 4. **Alphabetical Barrel Files**:
-   - Provide barrel files `domain/entities/entities.dart` and `data/models/models.dart`.
+   - Provide barrel files:
+     - `domain/entities/entities.dart` (exports all domain entities).
+     - `domain/usecases/usecases.dart` (exports all feature use cases).
+     - `data/models/models.dart` (exports all DTO models across all subfolders).
    - Keep exports sorted strictly alphabetically to satisfy linter constraints.

@@ -4,17 +4,54 @@ const { runValidation } = require('../../../skills/manage-guidelines/scripts/val
 
 const REGISTRY_ROOT = path.resolve(__dirname, '../../../');
 
+function isSymlink(targetPath) {
+  try {
+    return fs.lstatSync(targetPath).isSymbolicLink();
+  } catch (_) {
+    return false;
+  }
+}
+
+function createPluginSymlink(sourceDir, destDir) {
+  if (isSymlink(destDir) || fs.existsSync(destDir)) {
+    try {
+      const stats = fs.lstatSync(destDir);
+      if (stats.isSymbolicLink()) {
+        const currentTarget = fs.readlinkSync(destDir);
+        const resolvedCurrent = path.isAbsolute(currentTarget)
+          ? currentTarget
+          : path.resolve(path.dirname(destDir), currentTarget);
+        if (resolvedCurrent === path.resolve(sourceDir)) {
+          return 'already_linked';
+        }
+        fs.unlinkSync(destDir);
+      } else {
+        return 'exists_dir';
+      }
+    } catch (e) {
+      try {
+        fs.unlinkSync(destDir);
+      } catch (_) {}
+    }
+  }
+
+  const symlinkType = process.platform === 'win32' ? 'junction' : 'dir';
+  fs.symlinkSync(sourceDir, destDir, symlinkType);
+  return 'linked';
+}
+
 function listRegistry() {
   console.log('\n📦 Agents Hub Registry Contents:\n');
 
-  // Core
-  console.log('\x1b[1m[Core Standards]\x1b[0m');
-  const coreRulesDir = path.join(REGISTRY_ROOT, 'core', 'rules');
+  // Core Plugin
+  console.log('\x1b[1m[Core Standards Plugin]\x1b[0m');
+  const coreDir = path.join(REGISTRY_ROOT, 'core');
+  const coreRulesDir = path.join(coreDir, 'rules');
   if (fs.existsSync(coreRulesDir)) {
     const rules = fs.readdirSync(coreRulesDir).filter(f => f.endsWith('.md'));
     rules.forEach(r => console.log(`  📄 rule: core/rules/${r}`));
   }
-  const coreSkillsDir = path.join(REGISTRY_ROOT, 'core', 'skills');
+  const coreSkillsDir = path.join(coreDir, 'skills');
   if (fs.existsSync(coreSkillsDir)) {
     const skills = fs.readdirSync(coreSkillsDir);
     skills.forEach(s => console.log(`  ⚡ skill: core/skills/${s}`));
@@ -67,44 +104,46 @@ function listRegistry() {
 
 function linkPlugin(pluginName, targetDir) {
   const resolvedTarget = path.resolve(process.cwd(), targetDir || '.');
-  const pluginManifestPath = path.join(REGISTRY_ROOT, 'plugins', pluginName, 'plugin.json');
 
-  if (!fs.existsSync(pluginManifestPath)) {
-    console.error(`\x1b[31mError:\x1b[0m Plugin "${pluginName}" does not exist at ${pluginManifestPath}`);
+  let sourcePluginDir;
+  if (pluginName === 'core') {
+    sourcePluginDir = path.join(REGISTRY_ROOT, 'core');
+  } else {
+    sourcePluginDir = path.join(REGISTRY_ROOT, 'plugins', pluginName);
+  }
+
+  const manifestPath = path.join(sourcePluginDir, 'plugin.json');
+  if (!fs.existsSync(manifestPath)) {
+    console.error(`\x1b[31mError:\x1b[0m Plugin "${pluginName}" does not exist at ${sourcePluginDir}`);
     process.exit(1);
   }
 
-  const agentsDir = path.join(resolvedTarget, '.agents');
-  if (!fs.existsSync(agentsDir)) {
-    fs.mkdirSync(agentsDir, { recursive: true });
+  const agentsPluginsDir = path.join(resolvedTarget, '.agents', 'plugins');
+  if (!fs.existsSync(agentsPluginsDir)) {
+    fs.mkdirSync(agentsPluginsDir, { recursive: true });
   }
 
-  const pluginsConfigPath = path.join(agentsDir, 'plugins.json');
-  let config = { inherits: [] };
+  // 1. Always ensure 'core' plugin is linked into .agents/plugins/core
+  const coreSource = path.join(REGISTRY_ROOT, 'core');
+  const coreDest = path.join(agentsPluginsDir, 'core');
+  const coreStatus = createPluginSymlink(coreSource, coreDest);
+  if (coreStatus === 'linked') {
+    console.log(`\x1b[32m✔\x1b[0m Linked universal \x1b[36mcore\x1b[0m plugin -> ${coreDest}`);
+  }
 
-  if (fs.existsSync(pluginsConfigPath)) {
-    try {
-      config = JSON.parse(fs.readFileSync(pluginsConfigPath, 'utf8'));
-      if (!Array.isArray(config.inherits)) {
-        config.inherits = [];
-      }
-    } catch (e) {
-      console.warn(`Warning: Overwriting corrupted ${pluginsConfigPath}`);
+  // 2. Link requested stack plugin if not 'core'
+  if (pluginName !== 'core') {
+    const pluginDest = path.join(agentsPluginsDir, pluginName);
+    const status = createPluginSymlink(sourcePluginDir, pluginDest);
+    if (status === 'linked') {
+      console.log(`\x1b[32m✔\x1b[0m Successfully linked \x1b[36m${pluginName}\x1b[0m plugin -> ${pluginDest}`);
+    } else if (status === 'already_linked') {
+      console.log(`\x1b[33m⚠\x1b[0m Plugin \x1b[36m${pluginName}\x1b[0m is already linked at: ${pluginDest}`);
     }
   }
 
-  // Check if already linked
-  const alreadyLinked = config.inherits.some(entry => entry.path === pluginManifestPath);
-  if (!alreadyLinked) {
-    config.inherits.push({ path: pluginManifestPath });
-    fs.writeFileSync(pluginsConfigPath, JSON.stringify(config, null, 2) + '\n', 'utf8');
-    console.log(`\x1b[32m✔\x1b[0m Successfully linked \x1b[36m${pluginName}\x1b[0m into: ${pluginsConfigPath}`);
-  } else {
-    console.log(`\x1b[33m⚠\x1b[0m Plugin \x1b[36m${pluginName}\x1b[0m is already inherited in: ${pluginsConfigPath}`);
-  }
-
-  // Create rules/project_overrides.md if not present
-  const rulesDir = path.join(agentsDir, 'rules');
+  // 3. Create .agents/rules/project_overrides.md if not present
+  const rulesDir = path.join(resolvedTarget, '.agents', 'rules');
   const overridesFile = path.join(rulesDir, 'project_overrides.md');
   if (!fs.existsSync(overridesFile)) {
     fs.mkdirSync(rulesDir, { recursive: true });
@@ -116,29 +155,66 @@ function linkPlugin(pluginName, targetDir) {
   }
 }
 
+function unlinkPlugin(pluginName, targetDir) {
+  const resolvedTarget = path.resolve(process.cwd(), targetDir || '.');
+  const pluginDest = path.join(resolvedTarget, '.agents', 'plugins', pluginName);
+
+  if (!isSymlink(pluginDest) && !fs.existsSync(pluginDest)) {
+    console.log(`\x1b[33m⚠\x1b[0m Plugin "${pluginName}" is not linked in ${resolvedTarget}`);
+    return;
+  }
+
+  try {
+    const stats = fs.lstatSync(pluginDest);
+    if (stats.isSymbolicLink()) {
+      fs.unlinkSync(pluginDest);
+    } else {
+      fs.rmSync(pluginDest, { recursive: true, force: true });
+    }
+    console.log(`\x1b[32m✔\x1b[0m Unlinked plugin \x1b[36m${pluginName}\x1b[0m from: ${pluginDest}`);
+  } catch (err) {
+    console.error(`\x1b[31mError unlinking ${pluginName}:\x1b[0m ${err.message}`);
+  }
+}
+
 function checkStatus(targetDir) {
   const resolvedTarget = path.resolve(process.cwd(), targetDir || '.');
-  const pluginsConfigPath = path.join(resolvedTarget, '.agents', 'plugins.json');
+  const agentsPluginsDir = path.join(resolvedTarget, '.agents', 'plugins');
 
   console.log(`\n🔍 Checking Workspace Status: ${resolvedTarget}\n`);
 
-  if (!fs.existsSync(pluginsConfigPath)) {
-    console.log('\x1b[33mNo .agents/plugins.json found in this workspace.\x1b[0m');
+  if (!fs.existsSync(agentsPluginsDir)) {
+    console.log('\x1b[33mNo .agents/plugins/ directory found in this workspace.\x1b[0m');
     console.log('Run `agents-hub link <plugin-name>` to link a stack.\n');
     return;
   }
 
   try {
-    const config = JSON.parse(fs.readFileSync(pluginsConfigPath, 'utf8'));
-    console.log('\x1b[1mInherited Plugins & Stacks:\x1b[0m');
-    if (Array.isArray(config.inherits) && config.inherits.length > 0) {
-      config.inherits.forEach(entry => {
-        const exists = fs.existsSync(entry.path);
-        const status = exists ? '\x1b[32m[Valid]\x1b[0m' : '\x1b[31m[Missing Path]\x1b[0m';
-        console.log(`  ${status} ${entry.path}`);
-      });
+    const entries = fs.readdirSync(agentsPluginsDir);
+    console.log('\x1b[1mActive Linked Plugins (.agents/plugins/):\x1b[0m');
+    if (entries.length === 0) {
+      console.log('  (No plugins currently linked)');
     } else {
-      console.log('  (No inherited plugins declared)');
+      for (const entry of entries) {
+        const fullPath = path.join(agentsPluginsDir, entry);
+        const isLink = isSymlink(fullPath);
+        let target = '';
+        let valid = false;
+
+        if (isLink) {
+          target = fs.readlinkSync(fullPath);
+          const resolvedTarget = path.isAbsolute(target)
+            ? target
+            : path.resolve(agentsPluginsDir, target);
+          valid = fs.existsSync(resolvedTarget);
+        } else {
+          valid = fs.existsSync(path.join(fullPath, 'plugin.json'));
+        }
+
+        const statusTag = valid ? '\x1b[32m[Active]\x1b[0m' : '\x1b[31m[Broken Link]\x1b[0m';
+        const linkInfo = isLink ? ` -> ${target}` : ' (physical directory)';
+        console.log(`  ${statusTag} \x1b[36m${entry}\x1b[0m${linkInfo}`);
+      }
     }
 
     const localRulesDir = path.join(resolvedTarget, '.agents', 'rules');
@@ -149,13 +225,14 @@ function checkStatus(targetDir) {
     }
     console.log('');
   } catch (err) {
-    console.error(`\x1b[31mError reading ${pluginsConfigPath}:\x1b[0m ${err.message}`);
+    console.error(`\x1b[31mError checking status in ${agentsPluginsDir}:\x1b[0m ${err.message}`);
   }
 }
 
 module.exports = {
   listRegistry,
   linkPlugin,
+  unlinkPlugin,
   checkStatus,
   runValidation
 };

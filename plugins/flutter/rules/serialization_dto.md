@@ -80,12 +80,29 @@ extension ChatMessageDomainMapper on ChatMessage {
 
 ---
 
-## 3. Alphabetical Barrel Files
+## 3. Subdomain DTO Grouping & Alphabetical Barrel Files
 
-- Maintain alphabetically-sorted barrel files to group data models and domain entities:
-  - `data/models/models.dart` (exports all DTO model definitions).
+### Subdomain DTO Grouping
+When a feature contains multiple subdomains or numerous technical request/response models, organize DTOs into dedicated subdirectories under `data/models/<subdomain>/`:
+
+```text
+lib/src/features/users/data/models/
+├── auth/
+│   ├── login_request_dto.dart
+│   └── login_response_dto.dart
+├── profile/
+│   ├── create_user_dto.dart
+│   ├── update_user_dto.dart
+│   └── user_profile_dto.dart
+└── models.dart                          # Barrel file exporting all DTOs
+```
+
+### Alphabetical Barrel Files
+- Maintain alphabetically-sorted barrel files to group data models, use cases, and domain entities:
+  - `data/models/models.dart` (exports all DTO model definitions across all subfolders).
   - `domain/entities/entities.dart` (exports all domain entity definitions).
-- Import these barrel files inside repositories, use cases, providers, and presentation screens instead of importing individual model files directly.
+  - `domain/usecases/usecases.dart` (exports all feature use case classes).
+- Import these barrel files inside repositories, use cases, providers, and presentation screens instead of importing individual model/entity files directly.
 
 ---
 

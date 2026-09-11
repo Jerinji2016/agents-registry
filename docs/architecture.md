@@ -10,8 +10,10 @@ Rather than treating agent customizations as isolated files within individual pr
 
 ```text
 agents-hub/
-├── core/                                # Universal base standards (Git workflow, clean code)
+├── core/                                # Universal base standards (Git workflow, clean code, AI behavior)
+│   ├── plugin.json                      # Core manifest marker
 │   ├── rules/
+│   │   ├── ai_agent_behavior.md
 │   │   └── git_workflow.md
 │   └── skills/
 │       └── code-review/
@@ -57,9 +59,9 @@ agents-hub/
 
 | Customization Type | File Location | Activation Model | Primary Use Case |
 | :--- | :--- | :--- | :--- |
-| **Modular Rules** | `plugins/<stack>/rules/*.md` | Always active when plugin is enabled | Hard architectural constraints, lint rules, layer invariants |
-| **Skills** | `plugins/<stack>/skills/<name>/SKILL.md` | Progressive disclosure (loaded on demand) | Multi-step runbooks, complex code generation workflows |
-| **Plugins** | `plugins/<stack>/plugin.json` | Explicit inheritance via `plugins.json` | Bundling rules, skills, hooks, and configs into one unit |
+| **Modular Rules** | `<plugin>/rules/*.md` | Always active when plugin is linked in `.agents/plugins/` | Hard architectural constraints, lint rules, layer invariants |
+| **Skills** | `<plugin>/skills/<name>/SKILL.md` | Progressive disclosure (loaded on demand) | Multi-step runbooks, complex code generation workflows |
+| **Plugins** | `<plugin>/plugin.json` | Direct symlink in `.agents/plugins/<name>` | Packaging rules, skills, hooks, and configs into one unit |
 
 ---
 
@@ -69,8 +71,8 @@ To prevent overwhelming the model's context window, Antigravity uses **progressi
 
 ```mermaid
 flowchart TD
-    Proj[".agents/plugins.json in project
-    (inherits: /path/to/agents-hub/plugins/flutter/plugin.json)"]
+    Proj[".agents/plugins/flutter symlinked to
+    registry/plugins/flutter"]
     
     Engine["Antigravity Core Engine"]
     

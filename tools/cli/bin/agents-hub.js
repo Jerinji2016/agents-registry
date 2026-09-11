@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { listRegistry, linkPlugin, checkStatus, runValidation } = require('../src/index.js');
+const { listRegistry, linkPlugin, unlinkPlugin, checkStatus, runValidation } = require('../src/index.js');
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -15,13 +15,15 @@ function printUsage() {
 \x1b[1mCommands:\x1b[0m
   list                      List all available stacks, rules, and skills in the registry
   validate                  Validate all manifests, rule files, and skill frontmatter
-  link <stack> [--target]   Link a stack plugin into a target project (.agents/plugins.json)
+  link <stack> [--target]   Link a stack plugin & core into a target project (.agents/plugins/)
+  unlink <stack> [--target] Unlink a stack plugin from a target project
   status [--target]         Check active plugins and local overrides in a project workspace
 
 \x1b[1mExamples:\x1b[0m
   agents-hub list
   agents-hub validate
   agents-hub link flutter --target /path/to/my-app
+  agents-hub unlink flutter --target /path/to/my-app
   agents-hub status
 `);
 }
@@ -39,12 +41,24 @@ switch (command) {
   case 'link': {
     const stack = args[1];
     if (!stack) {
-      console.error('\x1b[31mError:\x1b[0m Please specify a stack name to link (e.g. flutter, react).');
+      console.error('\x1b[31mError:\x1b[0m Please specify a stack name to link (e.g. flutter, react, core).');
       process.exit(1);
     }
     const targetIdx = args.indexOf('--target');
     const targetDir = targetIdx !== -1 && args[targetIdx + 1] ? args[targetIdx + 1] : process.cwd();
     linkPlugin(stack, targetDir);
+    break;
+  }
+
+  case 'unlink': {
+    const stack = args[1];
+    if (!stack) {
+      console.error('\x1b[31mError:\x1b[0m Please specify a stack name to unlink (e.g. flutter, react).');
+      process.exit(1);
+    }
+    const targetIdx = args.indexOf('--target');
+    const targetDir = targetIdx !== -1 && args[targetIdx + 1] ? args[targetIdx + 1] : process.cwd();
+    unlinkPlugin(stack, targetDir);
     break;
   }
 

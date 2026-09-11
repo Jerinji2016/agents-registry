@@ -14,7 +14,14 @@ describe('Registry Structural Validation Tests', () => {
     });
   });
 
-  it('should have valid plugin.json for each plugin', () => {
+  it('should have valid plugin.json for core and each plugin', () => {
+    // Core manifest
+    const coreManifestPath = path.join(ROOT_DIR, 'core', 'plugin.json');
+    assert.ok(fs.existsSync(coreManifestPath), 'core/plugin.json must exist');
+    const coreManifest = JSON.parse(fs.readFileSync(coreManifestPath, 'utf8'));
+    assert.strictEqual(coreManifest.name, 'core');
+    assert.ok(coreManifest.description && coreManifest.description.length > 0);
+
     const pluginsDir = path.join(ROOT_DIR, 'plugins');
     assert.ok(fs.existsSync(pluginsDir), 'plugins/ directory must exist');
 
