@@ -20,7 +20,7 @@ The **Antigravity Agents Hub** extension provides a visual sidebar to inspect ac
 1. Download the latest `antigravity-agents-hub-X.Y.Z.vsix` from [Releases](https://github.com/Jerinji2016/agents-registry/releases).
 2. Install via terminal:
    ```bash
-   # In Antigravity IDE:
+   # In Antigravity IDE (macOS):
    "/Applications/Antigravity IDE.app/Contents/Resources/app/bin/antigravity-ide" --install-extension antigravity-agents-hub-X.Y.Z.vsix
    
    # Or in standard VS Code:
@@ -28,7 +28,16 @@ The **Antigravity Agents Hub** extension provides a visual sidebar to inspect ac
    ```
    *Or in the IDE UI: Go to **Extensions** → Click **`...`** menu → **Install from VSIX...***
 
-#### Option B: Local Development Link
+#### Option B: Build & Install Locally from Source
+```bash
+# Package and auto-install into Antigravity IDE in one step:
+npm run package:extension && npm run install:extension
+
+# Or package VSIX only:
+npm run package:extension
+```
+
+#### Option C: Local Development Link
 ```bash
 # Symlink directly into Antigravity IDE extensions:
 ln -s "$(pwd)/tools/ide-extension" ~/.antigravity/extensions/antigravity.antigravity-agents-hub-1.0.0
