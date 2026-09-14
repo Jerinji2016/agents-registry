@@ -91,6 +91,17 @@ jobs:
             });
           "
 
+      - name: Commit & Push Version Synchronization to main
+        if: steps.tag_version.outputs.new_tag != ''
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json tools/ide-extension/package.json
+          git commit -m "chore(release): sync package.json to ${{ steps.tag_version.outputs.new_tag }} [skip ci]" || echo "No changes to commit"
+          git push origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Package Production VSIX
         if: steps.tag_version.outputs.new_tag != ''
         run: |
