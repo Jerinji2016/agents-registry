@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { resolveRegistryRoot } = require('./resolver.js');
-const { ensureRegistryExists, pullLatestRegistry, DEFAULT_MANAGED_PATH } = require('./git-sync.js');
+const { ensureRegistryExists, pullLatestRegistry, checkRegistryUpdateStatus, DEFAULT_MANAGED_PATH } = require('./git-sync.js');
 const { checkForExtensionUpdates, downloadFile, isNewerVersion } = require('./updater.js');
 
 const pkgJson = require('../package.json');
@@ -387,10 +387,16 @@ class RegistryConfigProvider {
     this._onDidChangeTreeData = new vscode.EventEmitter();
     this.onDidChangeTreeData = this._onDidChangeTreeData.event;
     this.updateAvailable = null;
+    this.registrySyncStatus = { status: 'unknown', message: '' };
   }
 
   setUpdateAvailable(info) {
     this.updateAvailable = info;
+    this.refresh();
+  }
+
+  setRegistrySyncStatus(statusInfo) {
+    this.registrySyncStatus = statusInfo || { status: 'unknown' };
     this.refresh();
   }
 
@@ -409,9 +415,9 @@ class RegistryConfigProvider {
 
     const items = [];
 
-    // 1. Update status (if available)
+    // 1. Extension Update status (if available)
     if (this.updateAvailable && this.updateAvailable.hasUpdate) {
-      const updateItem = new vscode.TreeItem(`✨ Update Available: ${this.updateAvailable.tagName}`, vscode.TreeItemCollapsibleState.None);
+      const updateItem = new vscode.TreeItem(`✨ Extension Update Available: ${this.updateAvailable.tagName}`, vscode.TreeItemCollapsibleState.None);
       updateItem.description = 'Click to install';
       updateItem.iconPath = new vscode.ThemeIcon('cloud-download');
       updateItem.command = {
@@ -437,8 +443,22 @@ class RegistryConfigProvider {
       items.push(locationItem);
 
       const syncItem = new vscode.TreeItem('🔄 Sync Registry', vscode.TreeItemCollapsibleState.None);
-      syncItem.iconPath = new vscode.ThemeIcon('cloud-download');
-      syncItem.description = 'git pull latest rules';
+      if (this.registrySyncStatus.status === 'up_to_date') {
+        syncItem.description = '✓ Up to date';
+        syncItem.tooltip = 'Registry rules and skills are up to date with GitHub. Click to re-sync.';
+        syncItem.iconPath = new vscode.ThemeIcon('check');
+      } else if (this.registrySyncStatus.status === 'updates_available') {
+        syncItem.label = '⬇ Sync Registry';
+        syncItem.description = 'Updates available (Click to sync)';
+        syncItem.tooltip = 'New rules or skills are available on GitHub. Click to pull.';
+        syncItem.iconPath = new vscode.ThemeIcon('cloud-download');
+      } else if (this.registrySyncStatus.status === 'checking') {
+        syncItem.description = 'Checking GitHub...';
+        syncItem.iconPath = new vscode.ThemeIcon('sync~spin');
+      } else {
+        syncItem.iconPath = new vscode.ThemeIcon('cloud-download');
+        syncItem.description = 'git pull latest rules';
+      }
       syncItem.command = {
         command: 'agentsHub.syncRegistry',
         title: 'Sync Registry'
@@ -595,15 +615,45 @@ function activate(context) {
     }
   }
 
+  async function performRegistryStatusCheck(isManual = false) {
+    const workspaceRoot = getWorkspaceRoot();
+    const currentRoot = resolveRegistryRoot(workspaceRoot) || DEFAULT_MANAGED_PATH;
+
+    if (fs.existsSync(currentRoot) && fs.existsSync(path.join(currentRoot, 'plugins'))) {
+      if (isManual) {
+        configProvider.setRegistrySyncStatus({ status: 'checking' });
+      }
+      try {
+        const statusInfo = await checkRegistryUpdateStatus(currentRoot);
+        configProvider.setRegistrySyncStatus(statusInfo);
+
+        if (isManual && statusInfo.status === 'updates_available') {
+          const syncChoice = await vscode.window.showInformationMessage(
+            'Agents Hub: Newer rules and skills are available in the central registry.',
+            'Sync Registry Now',
+            'Later'
+          );
+          if (syncChoice === 'Sync Registry Now') {
+            vscode.commands.executeCommand('agentsHub.syncRegistry');
+          }
+        }
+      } catch (err) {
+        configProvider.setRegistrySyncStatus({ status: 'error', message: err.message });
+      }
+    }
+  }
+
   context.subscriptions.push(
     vscode.commands.registerCommand('agentsHub.refresh', () => {
       refreshAll();
+      performRegistryStatusCheck(false);
       vscode.window.showInformationMessage('Agents Hub: Refreshed stacks and configuration.');
     })
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand('agentsHub.checkUpdates', () => {
+      performRegistryStatusCheck(true);
       return performUpdateCheck(true);
     })
   );
@@ -620,6 +670,7 @@ function activate(context) {
       }, async () => {
         try {
           const result = await pullLatestRegistry(currentRoot);
+          configProvider.setRegistrySyncStatus({ status: 'up_to_date', message: 'Registry is up to date.' });
           refreshAll();
           vscode.window.showInformationMessage(`Agents Hub: ${result.message || 'Registry synchronized successfully.'}`);
         } catch (err) {
@@ -754,6 +805,7 @@ function activate(context) {
   if (autoCheck !== false) {
     setTimeout(() => {
       performUpdateCheck(false);
+      performRegistryStatusCheck(false);
     }, 3000);
   }
 }

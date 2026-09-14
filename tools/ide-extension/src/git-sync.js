@@ -77,10 +77,62 @@ async function pullLatestRegistry(targetPath = DEFAULT_MANAGED_PATH) {
   }
 }
 
+/**
+ * Checks whether the local registry repository is up to date with remote GitHub.
+ * Returns { status: 'up_to_date' | 'updates_available' | 'not_git' | 'error', localCommit, remoteCommit, message }
+ */
+async function checkRegistryUpdateStatus(targetPath = DEFAULT_MANAGED_PATH, repoUrl = DEFAULT_REPO_URL) {
+  const resolved = targetPath.startsWith('~')
+    ? path.join(os.homedir(), targetPath.slice(1))
+    : targetPath;
+
+  if (!fs.existsSync(resolved) || !fs.existsSync(path.join(resolved, '.git'))) {
+    return { status: 'not_git', hasUpdates: false, message: 'Not a git repository.' };
+  }
+
+  try {
+    const localCommit = await execGit(['rev-parse', 'HEAD'], resolved);
+    const remoteOutput = await execGit(['ls-remote', repoUrl, 'HEAD', 'refs/heads/main'], resolved);
+    const lines = remoteOutput.split('\n').filter(Boolean);
+    let remoteCommit = '';
+    for (const line of lines) {
+      const [sha, ref] = line.trim().split(/\s+/);
+      if (ref === 'refs/heads/main' || ref === 'HEAD') {
+        remoteCommit = sha;
+        break;
+      }
+    }
+
+    if (!remoteCommit && lines.length > 0) {
+      remoteCommit = lines[0].split(/\s+/)[0];
+    }
+
+    if (!remoteCommit) {
+      return { status: 'unknown', hasUpdates: false, localCommit, message: 'Could not determine remote HEAD.' };
+    }
+
+    const isUpToDate = localCommit === remoteCommit;
+    return {
+      status: isUpToDate ? 'up_to_date' : 'updates_available',
+      hasUpdates: !isUpToDate,
+      localCommit,
+      remoteCommit,
+      message: isUpToDate ? 'Registry is up to date.' : 'Updates available from GitHub.'
+    };
+  } catch (err) {
+    return {
+      status: 'error',
+      hasUpdates: false,
+      message: err.message
+    };
+  }
+}
+
 module.exports = {
   DEFAULT_REPO_URL,
   DEFAULT_MANAGED_PATH,
   ensureRegistryExists,
   pullLatestRegistry,
+  checkRegistryUpdateStatus,
   execGit
 };
