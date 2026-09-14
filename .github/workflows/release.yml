@@ -50,6 +50,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
@@ -69,7 +70,7 @@ jobs:
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.2
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
           default_bump: patch
           initial_version: 1.0.0
           tag_prefix: v
@@ -100,7 +101,7 @@ jobs:
           git commit -m "chore(release): sync package.json to ${{ steps.tag_version.outputs.new_tag }} [skip ci]" || echo "No changes to commit"
           git push origin main
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Package Production VSIX
         if: steps.tag_version.outputs.new_tag != ''
@@ -129,4 +130,4 @@ jobs:
           files: antigravity-agents-hub-*.vsix
           generate_release_notes: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
