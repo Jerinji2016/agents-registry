@@ -18,7 +18,7 @@ Localization uses compile-time type-safe code generation via **`slang`** (`slang
 1. **Application-Level Shared Strings (Core Tier)**:
    - Resides in `lib/src/core/i18n/`:
      - `core_en.i18n.json` & `core_ar.i18n.json` (accessible under `t.core.*`).
-     - `locale_controller.dart`: Riverpod notifier managing active `AppLocale` and persistence.
+     - `locale_provider.dart`: Riverpod provider managing active `AppLocale` and persistence.
      - `translations_provider.dart`: Riverpod provider exposing translation state to widgets.
      - `strings.g.dart`: Generated output file containing all strongly-typed translation trees.
 
@@ -44,16 +44,16 @@ flutter_integration: true
 namespaces: true
 ```
 
-### Riverpod Locale Controller
+### Riverpod Locale Provider
 ```dart
-// lib/src/core/i18n/locale_controller.dart
+// lib/src/core/i18n/locale_provider.dart
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'strings.g.dart';
 
-part 'locale_controller.g.dart';
+part 'locale_provider.g.dart';
 
 @riverpod
-class LocaleController extends _$LocaleController {
+class LocaleProvider extends _$LocaleProvider {
   @override
   AppLocale build() => AppLocale.en;
 

@@ -74,7 +74,7 @@ This master document consolidates the architectural conventions, state managemen
 - Two-Tier architecture: Core tier (`lib/src/core/i18n/` → `t.core.*`) and Feature tier (`presentation/i18n/` → `t.<feature>.*`).
 - Supported locales: `en` (base), `ar` (Arabic RTL).
 - UI-only boundary: Domain entities use enum error codes; Presentation translates them.
-- Manage language switching with Riverpod `LocaleController`.
+- Manage language switching with Riverpod `LocaleProvider`.
 - See detailed rules: [i18n_assets.md](./i18n_assets.md).
 
 ---

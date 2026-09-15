@@ -13,10 +13,10 @@ Standards for Riverpod state management, code generation (`@riverpod`), GetIt in
 // ✅ GOOD: Modern Riverpod 2.0 code generation
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-part 'user_profile_controller.g.dart';
+part 'user_profile_provider.g.dart';
 
 @riverpod
-class UserProfileController extends _$UserProfileController {
+class UserProfileProvider extends _$UserProfileProvider {
   @override
   FutureOr<UserProfile> build() async {
     return _fetchProfile();
@@ -61,10 +61,10 @@ To preserve testability and Clean Architecture separation:
    ```
 
 2. **Consume Use Cases from Riverpod Providers in Notifiers**:
-   UI State Notifiers must fetch use cases from Riverpod providers rather than querying GetIt directly:
+   UI State Notifiers and Providers must fetch use cases from Riverpod providers rather than querying GetIt directly:
    ```dart
    @riverpod
-   class AiChatController extends _$AiChatController {
+   class AiChatProvider extends _$AiChatProvider {
      GetChatMessagesUseCase get _getChatMessagesUseCase => 
          ref.read(getChatMessagesUseCaseProvider);
 
@@ -85,7 +85,7 @@ Schedule initial asynchronous background loading after the notifier completes in
 
 ```dart
 @riverpod
-class AiChatController extends _$AiChatController {
+class AiChatProvider extends _$AiChatProvider {
   @override
   AiChatState build() {
     // Schedule asynchronous loading safely after provider initialization
@@ -112,7 +112,7 @@ class AiChatController extends _$AiChatController {
 
 2. **`ref.watch` vs `ref.read` Rules**:
    - **`ref.watch`**: Use inside Widget `build()` methods or inside `@riverpod` notifier `build()` methods to establish reactive dependencies.
-   - **`ref.read`**: Use ONLY inside user event handlers (`onPressed`, callbacks) and controller action methods. Never use `ref.read` in `build()` when you intend to react to state updates.
+   - **`ref.read`**: Use ONLY inside user event handlers (`onPressed`, callbacks) and provider action methods. Never use `ref.read` in `build()` when you intend to react to state updates.
 
 ---
 
@@ -127,7 +127,7 @@ class AiChatScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final chatState = ref.watch(aiChatControllerProvider);
+    final chatState = ref.watch(aiChatProvider);
 
     return chatState.when(
       data: (messages) => ListView.builder(

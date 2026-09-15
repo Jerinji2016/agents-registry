@@ -63,7 +63,7 @@ Strictly adhere to the following naming standards:
 | **Repository Contract** | `<feature>_<subdomain>_repository.dart` | `<Feature><Subdomain>Repository` | `ai_chat_repository.dart` → `AIChatRepository` |
 | **Repository Impl** | `<feature>_<subdomain>_repository_impl.dart` | `<Feature><Subdomain>RepositoryImpl` | `ai_chat_repository_impl.dart` → `AIChatRepositoryImpl` |
 | **Data Source** | `<subdomain>_api_service.dart` | `<Subdomain>ApiService` | `chat_api_service.dart` → `ChatApiService` |
-| **Riverpod Provider** | `<feature>_<subdomain>_provider.dart` | `<feature><Subdomain>Provider` | `ai_chat_provider.dart` → `aiChatProvider` |
+| **Riverpod Provider** | `<feature>_<subdomain>_provider.dart` | `<Feature><Subdomain>Provider` | `ai_chat_provider.dart` → `AiChatProvider` (`aiChatProvider`) |
 | **Dependency Injection** | `<feature>_di.dart` | `configure<Feature>Dependencies` | `ai_di.dart` → `configureAIDependencies` |
 | **Screen Widget** | `<screen_name>_screen.dart` | `<ScreenName>Screen` (`@RoutePage()`) | `chat_history_screen.dart` → `ChatHistoryScreen` |
 | **Localization JSON** | `<namespace>_<locale>.i18n.json` | N/A (Slang JSON namespace) | `auth_en.i18n.json`, `core_ar.i18n.json` |
