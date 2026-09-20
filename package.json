@@ -1,6 +1,6 @@
 {
   "name": "agents-hub",
-  "version": "1.3.4",
+  "version": "1.4.0",
   "description": "Central Agent Customizations & Guidelines Registry for Antigravity",
   "main": "tools/cli/src/index.js",
   "bin": {
