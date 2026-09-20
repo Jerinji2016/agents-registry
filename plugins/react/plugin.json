@@ -1,5 +1,5 @@
 {
   "name": "react",
-  "description": "Architectural guidelines for Next.js App Router, Server/Client components, Server Actions, Tailwind CSS design tokens, and React best practices.",
-  "version": "1.0.0"
+  "description": "Architectural guidelines for React web applications: feature-driven structure, UI -> Hooks -> Services -> API dependency flow, TanStack Query & Zustand state management, pure components, and Tailwind CSS design tokens.",
+  "version": "1.1.0"
 }

@@ -1,0 +1,5 @@
+{
+  "name": "go",
+  "description": "Architectural guidelines, clean 3-tier domain boundaries, dynamic REST/gRPC transport, SQLC database persistence patterns, JWT/slog middleware, and constructor dependency injection for Go backend applications.",
+  "version": "1.0.0"
+}

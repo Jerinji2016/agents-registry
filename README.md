@@ -66,13 +66,14 @@ agents-hub --help
 #### Via the IDE Extension (Visual)
 1. Open your project in Antigravity IDE.
 2. Click the **Agents Hub** icon on the left Activity Bar.
-3. In the **HUB** panel, click **`+` (Add)** next to your stack (e.g. `flutter` or `react`).
+3. In the **HUB** panel, click **`+` (Add)** next to your stack (e.g. `flutter`, `react`, `go`, or `proto`).
 4. The plugin and its rules/skills are immediately active for your project.
 
 #### Via CLI
 ```bash
-# Inside your project directory:
-agents-hub link flutter
+# Inside your project directory (e.g. for Go backend & Proto schemas):
+agents-hub link go
+agents-hub link proto
 
 # Check active guidelines in the project:
 agents-hub status
@@ -83,7 +84,8 @@ agents-hub status
 # Inside your project root:
 mkdir -p .agents/plugins
 ln -s ~/Developer/agents-hub/core .agents/plugins/core
-ln -s ~/Developer/agents-hub/plugins/flutter .agents/plugins/flutter
+ln -s ~/Developer/agents-hub/plugins/go .agents/plugins/go
+ln -s ~/Developer/agents-hub/plugins/proto .agents/plugins/proto
 ```
 
 ---
