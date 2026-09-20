@@ -1,0 +1,5 @@
+{
+  "name": "proto",
+  "description": "Service contract standards, Protobuf specifications, backward compatibility invariants, domain/version directory layout, field deprecation rules, and Buf tooling workflows.",
+  "version": "1.0.0"
+}

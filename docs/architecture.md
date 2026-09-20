@@ -35,15 +35,51 @@ agents-hub/
 │   │       └── flutter-gen/
 │   │           └── SKILL.md
 │   │
-│   └── react/
+│   ├── react/
+│   │   ├── plugin.json
+│   │   ├── rules/
+│   │   │   ├── 00_meta_rules.md
+│   │   │   ├── clean_architecture.md
+│   │   │   ├── component_standards.md
+│   │   │   ├── state_api_management.md
+│   │   │   ├── styling_tailwind.md
+│   │   │   ├── testing_configuration.md
+│   │   │   └── AGENTS.md
+│   │   └── skills/
+│   │       ├── react-feature-scaffold/
+│   │       │   └── SKILL.md
+│   │       └── tailwind-helper/
+│   │           └── SKILL.md
+│   │
+│   ├── go/
+│   │   ├── plugin.json
+│   │   ├── rules/
+│   │   │   ├── 00_meta_rules.md
+│   │   │   ├── clean_architecture.md
+│   │   │   ├── transport_standards.md
+│   │   │   ├── data_layer_sqlc.md
+│   │   │   ├── auth_middleware.md
+│   │   │   ├── testing_standards.md
+│   │   │   └── AGENTS.md
+│   │   └── skills/
+│   │       ├── go-service-scaffold/
+│   │       │   └── SKILL.md
+│   │       └── middleware-helper/
+│   │           └── SKILL.md
+│   │
+│   └── proto/
 │       ├── plugin.json
 │       ├── rules/
 │       │   ├── 00_meta_rules.md
-│       │   ├── nextjs_conventions.md
-│       │   ├── tailwind_conventions.md
+│       │   ├── contract_versioning.md
+│       │   ├── field_compatibility_rules.md
+│       │   ├── naming_documentation.md
+│       │   ├── buf_tooling_workflow.md
 │       │   └── AGENTS.md
 │       └── skills/
-│           └── tailwind-helper/
+│           ├── proto-scaffold/
+│           │   └── SKILL.md
+│           └── buf-workflow/
 │               └── SKILL.md
 │
 └── skills/                              # Shared universal on-demand skills
