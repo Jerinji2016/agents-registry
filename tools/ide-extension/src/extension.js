@@ -442,22 +442,21 @@ class RegistryConfigProvider {
       };
       items.push(locationItem);
 
-      const syncItem = new vscode.TreeItem('🔄 Sync Registry', vscode.TreeItemCollapsibleState.None);
+      const syncItem = new vscode.TreeItem('Sync Registry', vscode.TreeItemCollapsibleState.None);
       if (this.registrySyncStatus.status === 'up_to_date') {
-        syncItem.description = '✓ Up to date';
+        syncItem.description = 'Up to date';
         syncItem.tooltip = 'Registry rules and skills are up to date with GitHub. Click to re-sync.';
         syncItem.iconPath = new vscode.ThemeIcon('check');
       } else if (this.registrySyncStatus.status === 'updates_available') {
-        syncItem.label = '⬇ Sync Registry';
-        syncItem.description = 'Updates available (Click to sync)';
+        syncItem.description = 'Click to Sync';
         syncItem.tooltip = 'New rules or skills are available on GitHub. Click to pull.';
         syncItem.iconPath = new vscode.ThemeIcon('cloud-download');
       } else if (this.registrySyncStatus.status === 'checking') {
-        syncItem.description = 'Checking GitHub...';
+        syncItem.description = 'Checking...';
         syncItem.iconPath = new vscode.ThemeIcon('sync~spin');
       } else {
         syncItem.iconPath = new vscode.ThemeIcon('cloud-download');
-        syncItem.description = 'git pull latest rules';
+        syncItem.description = 'Click to Sync';
       }
       syncItem.command = {
         command: 'agentsHub.syncRegistry',
@@ -465,9 +464,29 @@ class RegistryConfigProvider {
       };
       items.push(syncItem);
 
-      const checkUpdatesItem = new vscode.TreeItem(`🔍 Extension Version: v${CURRENT_VERSION}`, vscode.TreeItemCollapsibleState.None);
-      checkUpdatesItem.iconPath = new vscode.ThemeIcon('sync');
+      // Short local commit hash -> remote commit hash detail row below Sync Registry
+      const shortLocal = this.registrySyncStatus.localCommit
+        ? this.registrySyncStatus.localCommit.substring(0, 7)
+        : '';
+      const shortRemote = this.registrySyncStatus.remoteCommit
+        ? this.registrySyncStatus.remoteCommit.substring(0, 7)
+        : '';
+
+      if (shortLocal || shortRemote) {
+        const commitLabel = shortRemote
+          ? `${shortLocal || 'unknown'} → ${shortRemote}`
+          : shortLocal;
+        const commitItem = new vscode.TreeItem(commitLabel, vscode.TreeItemCollapsibleState.None);
+        commitItem.iconPath = new vscode.ThemeIcon('git-commit');
+        commitItem.tooltip = `Local HEAD: ${this.registrySyncStatus.localCommit || 'N/A'}\nRemote HEAD: ${this.registrySyncStatus.remoteCommit || 'N/A'}`;
+        commitItem.contextValue = 'commitInfoItem';
+        items.push(commitItem);
+      }
+
+      const checkUpdatesItem = new vscode.TreeItem(`v${CURRENT_VERSION}`, vscode.TreeItemCollapsibleState.None);
+      checkUpdatesItem.iconPath = new vscode.ThemeIcon('extensions');
       checkUpdatesItem.description = 'Check for updates';
+      checkUpdatesItem.tooltip = `Agents Hub Extension v${CURRENT_VERSION}. Click to check for updates.`;
       checkUpdatesItem.command = {
         command: 'agentsHub.checkUpdates',
         title: 'Check Updates'
@@ -670,7 +689,8 @@ function activate(context) {
       }, async () => {
         try {
           const result = await pullLatestRegistry(currentRoot);
-          configProvider.setRegistrySyncStatus({ status: 'up_to_date', message: 'Registry is up to date.' });
+          const statusInfo = await checkRegistryUpdateStatus(currentRoot);
+          configProvider.setRegistrySyncStatus(statusInfo);
           refreshAll();
           vscode.window.showInformationMessage(`Agents Hub: ${result.message || 'Registry synchronized successfully.'}`);
         } catch (err) {
@@ -796,9 +816,13 @@ function activate(context) {
     vscode.workspace.onDidChangeConfiguration(e => {
       if (e.affectsConfiguration('agentsHub.registryPath')) {
         refreshAll();
+        performRegistryStatusCheck(false);
       }
     })
   );
+
+  // Initial registry status check
+  performRegistryStatusCheck(false);
 
   // Background update check on startup (if enabled)
   const autoCheck = vscode.workspace.getConfiguration('agentsHub').get('autoCheckUpdates');

@@ -111,7 +111,21 @@ async function checkRegistryUpdateStatus(targetPath = DEFAULT_MANAGED_PATH, repo
       return { status: 'unknown', hasUpdates: false, localCommit, message: 'Could not determine remote HEAD.' };
     }
 
-    const isUpToDate = localCommit === remoteCommit;
+    let isUpToDate = localCommit === remoteCommit;
+
+    // If hashes differ, check if remoteCommit is already an ancestor of local HEAD (i.e. local is ahead of remote)
+    if (!isUpToDate && remoteCommit) {
+      try {
+        await execGit(['cat-file', '-e', remoteCommit], resolved);
+        await execGit(['merge-base', '--is-ancestor', remoteCommit, 'HEAD'], resolved);
+        // remoteCommit is already merged into local history; local has all remote changes
+        isUpToDate = true;
+      } catch (_) {
+        // remoteCommit is not in local history or not an ancestor; remote has new changes to pull
+        isUpToDate = false;
+      }
+    }
+
     return {
       status: isUpToDate ? 'up_to_date' : 'updates_available',
       hasUpdates: !isUpToDate,
