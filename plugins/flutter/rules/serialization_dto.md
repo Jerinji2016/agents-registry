@@ -102,7 +102,7 @@ lib/src/features/users/data/models/
   - `data/models/models.dart` (exports all DTO model definitions across all subfolders).
   - `domain/entities/entities.dart` (exports all domain entity definitions).
   - `domain/usecases/usecases.dart` (exports all feature use case classes).
-- Import these barrel files inside repositories, use cases, providers, and presentation screens instead of importing individual model/entity files directly.
+- Import these barrel files inside repositories, use cases, controllers, and presentation screens instead of importing individual model/entity files directly.
 
 ---
 

@@ -29,7 +29,7 @@ lib/src/features/<feature_name>/
 ├── presentation/                         # UI, state management & user experience layer
 │   ├── screens/                          # Page widgets annotated with @RoutePage()
 │   ├── widgets/                          # Reusable UI sub-widgets private to this feature
-│   ├── providers/                        # Riverpod Notifiers/providers holding screen state
+│   ├── controller/                       # Riverpod Controllers holding screen & UI state
 │   ├── router/                           # Feature routing wrappers or navigation helpers
 │   └── i18n/                             # Feature-specific localization (<feature>_<locale>.i18n.json)
 │
@@ -42,7 +42,7 @@ lib/src/features/<feature_name>/
 ### Subdivided Presentation Structure (For Large Features)
 For large features containing multiple distinct screen groups, subdivide `presentation/`:
 - `core/`: Feature-specific core theme extensions, shared helper services, or common widgets.
-- `<screen_subdomain>/`: Screen-group folders containing `screens/`, `widgets/`, and `providers/`.
+- `<screen_subdomain>/`: Screen-group folders containing `screens/`, `widgets/`, and `controller/`.
 - `i18n/`: Feature-specific localization files.
 
 ### Subdivided DTO Models Structure (For Features with Multiple Subdomains)
@@ -63,7 +63,8 @@ Strictly adhere to the following naming standards:
 | **Repository Contract** | `<feature>_<subdomain>_repository.dart` | `<Feature><Subdomain>Repository` | `ai_chat_repository.dart` → `AIChatRepository` |
 | **Repository Impl** | `<feature>_<subdomain>_repository_impl.dart` | `<Feature><Subdomain>RepositoryImpl` | `ai_chat_repository_impl.dart` → `AIChatRepositoryImpl` |
 | **Data Source** | `<subdomain>_api_service.dart` | `<Subdomain>ApiService` | `chat_api_service.dart` → `ChatApiService` |
-| **Riverpod Provider** | `<feature>_<subdomain>_provider.dart` | `<Feature><Subdomain>Provider` | `ai_chat_provider.dart` → `AiChatProvider` (`aiChatProvider`) |
+| **Presentation Controller** | `<feature>_controller.dart` / `<feature>_<subdomain>_controller.dart` | `<Feature>Controller` / `<Feature><Subdomain>Controller` | `ai_chat_controller.dart` → `AiChatController` (`aiChatControllerProvider`) |
+| **Domain Riverpod Provider** | `<feature>_providers.dart` | `<feature>Providers` | `ai_providers.dart` → `aiChatRepositoryProvider` |
 | **Dependency Injection** | `<feature>_di.dart` | `configure<Feature>Dependencies` | `ai_di.dart` → `configureAIDependencies` |
 | **Screen Widget** | `<screen_name>_screen.dart` | `<ScreenName>Screen` (`@RoutePage()`) | `chat_history_screen.dart` → `ChatHistoryScreen` |
 | **Localization JSON** | `<namespace>_<locale>.i18n.json` | N/A (Slang JSON namespace) | `auth_en.i18n.json`, `core_ar.i18n.json` |
@@ -99,6 +100,10 @@ Strictly adhere to the following naming standards:
     }
   }
   ```
+
+> [!NOTE]
+> **No Manual DI Module Registration**:
+> When a repository implementation is annotated with `@LazySingleton(as: DomainRepository)`, `injectable_generator` automatically generates the binding and registers the implementation with `GetIt` under the domain contract type. Do **NOT** manually register the repository again inside `<feature>_di.dart` or `injection_container.dart` to prevent duplicate registration collisions.
 - **Global Injection Locator**: Local feature DI initializers must be invoked in the global dependency locator located in `lib/src/config/dependancy_injection/injection_container.dart`:
   ```dart
   Future<void> initializeDependencies() async {
@@ -128,9 +133,9 @@ Strictly adhere to the following naming standards:
    - Concrete repositories in `data/repositories/` MUST implement abstract interfaces defined in `domain/repositories/`.
    - Data sources must only interact with DTO models (`data/models/`), mapping them to pure domain entities (`domain/entities/`) via extension mappers (`toDomain()` / `toDto()`).
 
-3. **Presentation Layer Uses Riverpod & Use Cases**:
+3. **Presentation Layer Uses Riverpod Controllers & Use Cases**:
    - ❌ UI widgets must NEVER call `data/data_sources/` or execute raw network calls.
-   - ✅ UI widgets watch Riverpod providers exposed by `presentation/providers/` or consume use cases.
+   - ✅ UI widgets watch Riverpod controllers exposed by `presentation/controller/` (e.g. `ref.watch(aiChatControllerProvider)`) or consume use cases via domain providers.
 
 4. **Alphabetical Barrel Files**:
    - Provide barrel files:
