@@ -14,9 +14,9 @@ This master document consolidates the architectural conventions, state managemen
 - **3-Tier Structure per Feature** (`lib/src/features/<feature_name>/`):
   - `domain/`: `entities/` (pure domain objects), `repositories/` (contracts), `usecases/` (@lazySingleton), `providers/` (Riverpod bridge).
   - `data/`: `data_sources/` (Retrofit/APIs), `models/` (Freezed DTOs), `repositories/` (implementations), `interceptors/`.
-  - `presentation/`: `screens/` (@RoutePage), `widgets/`, `providers/`, `router/`, `i18n/` (`<feature>_<locale>.i18n.json`).
+  - `presentation/`: `screens/` (@RoutePage), `widgets/`, `controller/`, `router/`, `i18n/` (`<feature>_<locale>.i18n.json`).
   - `di/`: Feature DI initialization (`<feature>_di.dart`).
-- **Boundaries**: Domain is pure Dart (no UI, no network/JSON dependencies). Data isolates serialization. Presentation uses Riverpod notifiers and use cases.
+- **Boundaries**: Domain is pure Dart (no UI, no network/JSON dependencies). Data isolates serialization. Presentation uses Riverpod controllers and use cases.
 - **Barrel Files**: Maintain alphabetically-sorted `entities.dart`, `usecases.dart`, and `models.dart`.
 - **Subdomain DTOs**: Group feature DTOs with numerous models into subdirectories under `data/models/<subdomain>/`.
 - See detailed rules: [clean_architecture.md](./clean_architecture.md).
@@ -27,7 +27,8 @@ This master document consolidates the architectural conventions, state managemen
 - Use cases: `<action>_<entity>_use_case.dart` → `GetChatMessagesUseCase`.
 - Repositories: `<feature>_<subdomain>_repository.dart` → `AIChatRepository` (Impl: `..._impl.dart` → `AIChatRepositoryImpl`).
 - Data sources: `<subdomain>_api_service.dart` → `ChatApiService`.
-- Riverpod providers: `<feature>_<subdomain>_provider.dart` → `ai_chat_provider.dart`.
+- Presentation controllers: `<feature>_controller.dart` / `<feature>_<subdomain>_controller.dart` → `ai_chat_controller.dart` (`AiChatController`).
+- Domain Riverpod providers: `<feature>_providers.dart` → `ai_providers.dart` (`aiChatRepositoryProvider`).
 - Dependency injection: `<feature>_di.dart` → `configureAIDependencies`.
 - Screens: `<screen_name>_screen.dart` → `ChatHistoryScreen` (`@RoutePage()`).
 - Localization: `<namespace>_<locale>.i18n.json` → `auth_en.i18n.json`.
@@ -37,17 +38,17 @@ This master document consolidates the architectural conventions, state managemen
 
 ## 4. Dependency Injection (GetIt & Injectable) & Riverpod Bridge
 - Wire compile-time dependencies with `get_it` and `injectable` (`@lazySingleton`, `@LazySingleton(as: DomainRepo)`).
-- Expose GetIt dependencies to Presentation through `@riverpod` provider functions.
-- State Notifiers read use cases from Riverpod providers (`ref.read(getChatMessagesUseCaseProvider)`), avoiding direct GetIt calls in UI.
+- Expose GetIt dependencies to Presentation Controllers through `@riverpod` provider functions in `domain/providers/`.
+- State Controllers read use cases from Riverpod domain providers (`ref.read(getChatMessagesUseCaseProvider)`), avoiding direct GetIt calls in UI.
 - See detailed rules: [clean_architecture.md](./clean_architecture.md) and [riverpod_standards.md](./riverpod_standards.md).
 
 ---
 
 ## 5. Riverpod 2.0+ State Management (`riverpod_standards.md`)
-- Always use `@riverpod` code generation syntax with `part '<filename>.g.dart';`.
+- Always use `@riverpod` code generation syntax for Controllers (`class <Feature>Controller extends _$<Feature>Controller`) with `part '<filename>.g.dart';`.
 - Always wrap state mutations with `state = await AsyncValue.guard(() async => ...)`.
 - **No Async State Mutation in `build()`**: Schedule initial loading with `unawaited(Future.microtask(_loadInitialData))` to prevent uninitialized provider errors.
-- Use `ref.watch` in reactive contexts and `ref.read` only in user event handlers.
+- Use `ref.watch` in reactive contexts (e.g. `ref.watch(aiChatControllerProvider)`) and `ref.read` only in user event handlers / controller action methods.
 - See detailed rules: [riverpod_standards.md](./riverpod_standards.md).
 
 ---
