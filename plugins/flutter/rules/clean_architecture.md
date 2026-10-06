@@ -100,6 +100,10 @@ Strictly adhere to the following naming standards:
     }
   }
   ```
+
+> [!NOTE]
+> **No Manual DI Module Registration**:
+> When a repository implementation is annotated with `@LazySingleton(as: DomainRepository)`, `injectable_generator` automatically generates the binding and registers the implementation with `GetIt` under the domain contract type. Do **NOT** manually register the repository again inside `<feature>_di.dart` or `injection_container.dart` to prevent duplicate registration collisions.
 - **Global Injection Locator**: Local feature DI initializers must be invoked in the global dependency locator located in `lib/src/config/dependancy_injection/injection_container.dart`:
   ```dart
   Future<void> initializeDependencies() async {

@@ -37,7 +37,7 @@ This master document consolidates the architectural conventions, state managemen
 ---
 
 ## 4. Dependency Injection (GetIt & Injectable) & Riverpod Bridge
-- Wire compile-time dependencies with `get_it` and `injectable` (`@lazySingleton`, `@LazySingleton(as: DomainRepo)`).
+- Wire compile-time dependencies with `get_it` and `injectable` (`@lazySingleton`, `@LazySingleton(as: DomainRepo)`). Annotating repository implementations auto-registers them with GetIt; do not manually duplicate registration in `<feature>_di.dart`.
 - Expose GetIt dependencies to Presentation Controllers through `@riverpod` provider functions in `domain/providers/`.
 - State Controllers read use cases from Riverpod domain providers (`ref.read(getChatMessagesUseCaseProvider)`), avoiding direct GetIt calls in UI.
 - See detailed rules: [clean_architecture.md](./clean_architecture.md) and [riverpod_standards.md](./riverpod_standards.md).
