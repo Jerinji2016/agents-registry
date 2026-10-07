@@ -6,6 +6,7 @@ const {
   DEFAULT_REPO_URL,
   DEFAULT_MANAGED_PATH,
   ensureRegistryExists,
+  resetRegistryToRemote,
   checkRegistryUpdateStatus
 } = require('../tools/ide-extension/src/git-sync.js');
 
@@ -34,5 +35,9 @@ describe('Git Sync Module Tests', () => {
     const result = await checkRegistryUpdateStatus(registryRoot);
     assert.ok(['up_to_date', 'updates_available', 'error'].includes(result.status));
     assert.strictEqual(typeof result.hasUpdates, 'boolean');
+  });
+
+  it('should export resetRegistryToRemote function', () => {
+    assert.strictEqual(typeof resetRegistryToRemote, 'function');
   });
 });

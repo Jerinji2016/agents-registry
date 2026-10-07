@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { resolveRegistryRoot } = require('./resolver.js');
-const { ensureRegistryExists, pullLatestRegistry, checkRegistryUpdateStatus, DEFAULT_MANAGED_PATH } = require('./git-sync.js');
+const { ensureRegistryExists, pullLatestRegistry, resetRegistryToRemote, checkRegistryUpdateStatus, DEFAULT_MANAGED_PATH } = require('./git-sync.js');
 const { checkForExtensionUpdates, downloadFile, isNewerVersion } = require('./updater.js');
 
 const pkgJson = require('../package.json');
@@ -694,7 +694,26 @@ function activate(context) {
           refreshAll();
           vscode.window.showInformationMessage(`Agents Hub: ${result.message || 'Registry synchronized successfully.'}`);
         } catch (err) {
-          vscode.window.showErrorMessage(`Sync failed: ${err.message}`);
+          if (err.message.includes('fast-forward') || err.message.includes('diverg')) {
+            const choice = await vscode.window.showWarningMessage(
+              'Agents Hub: Local registry has diverged from GitHub remote. Would you like to reset to the latest remote version?',
+              'Reset to Remote',
+              'Cancel'
+            );
+            if (choice === 'Reset to Remote') {
+              try {
+                await resetRegistryToRemote(currentRoot);
+                const statusInfo = await checkRegistryUpdateStatus(currentRoot);
+                configProvider.setRegistrySyncStatus(statusInfo);
+                refreshAll();
+                vscode.window.showInformationMessage('Agents Hub: Registry successfully reset to latest remote version.');
+              } catch (resetErr) {
+                vscode.window.showErrorMessage(`Reset failed: ${resetErr.message}`);
+              }
+            }
+          } else {
+            vscode.window.showErrorMessage(`Sync failed: ${err.message}`);
+          }
         }
       });
     })
