@@ -142,11 +142,38 @@ async function checkRegistryUpdateStatus(targetPath = DEFAULT_MANAGED_PATH, repo
   }
 }
 
+/**
+ * Resets the local registry repository to match remote origin/main.
+ */
+async function resetRegistryToRemote(targetPath = DEFAULT_MANAGED_PATH) {
+  const resolved = targetPath.startsWith('~')
+    ? path.join(os.homedir(), targetPath.slice(1))
+    : targetPath;
+
+  if (!fs.existsSync(resolved) || !fs.existsSync(path.join(resolved, '.git'))) {
+    return ensureRegistryExists(resolved);
+  }
+
+  try {
+    await execGit(['fetch', 'origin'], resolved);
+    await execGit(['reset', '--hard', 'origin/main'], resolved);
+    await execGit(['clean', '-fd'], resolved);
+    return {
+      status: 'reset',
+      message: 'Registry reset to match remote repository.',
+      path: resolved
+    };
+  } catch (err) {
+    throw new Error(`Failed to reset registry at ${resolved}: ${err.message}`);
+  }
+}
+
 module.exports = {
   DEFAULT_REPO_URL,
   DEFAULT_MANAGED_PATH,
   ensureRegistryExists,
   pullLatestRegistry,
+  resetRegistryToRemote,
   checkRegistryUpdateStatus,
   execGit
 };
